@@ -4,7 +4,9 @@ use std::{
 };
 
 pub use left_right::ReadHandleFactory;
-use patriecia::{db::Database, trie::Trie, InnerTrie, TrieIterator, H256};
+use patriecia::{
+    JellyfishMerkleIterator, JellyfishMerkleTree, SimpleHasher, TreeReader, VersionedDatabase, H256,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{LeftRightTrieError, Result};
@@ -12,30 +14,32 @@ use crate::{LeftRightTrieError, Result};
 pub type Proof = Vec<u8>;
 
 #[derive(Debug, Clone)]
-pub struct InnerTrieWrapper<D>
+pub struct JMTWrapper<'a, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
 {
-    inner: InnerTrie<D>,
+    inner: JellyfishMerkleTree<'a, D, H>,
 }
 
-impl<D> InnerTrieWrapper<D>
+impl<'a, D, H> JMTWrapper<'a, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
 {
-    pub fn new(inner: InnerTrie<D>) -> Self {
+    pub fn new(inner: JellyfishMerkleTree<D, H>) -> Self {
         Self { inner }
     }
 
     /// Produces a clone of the underlying trie
-    pub fn inner(&self) -> InnerTrie<D> {
+    pub fn inner(&self) -> JellyfishMerkleTree<D, H> {
         self.inner.clone()
     }
 
     pub fn get<K, V>(&self, key: &K) -> Result<V>
     where
-        K: for<'a> Deserialize<'a> + Serialize + Clone,
-        V: for<'a> Deserialize<'a> + Serialize + Clone,
+        K: for<'b> Deserialize<'b> + Serialize + Clone,
+        V: for<'b> Deserialize<'b> + Serialize + Clone,
     {
         let key = bincode::serialize(key).unwrap_or_default();
 
@@ -54,7 +58,7 @@ where
         Ok(value)
     }
 
-    pub fn contains<'a, K, V>(&self, key: &'a K) -> Result<bool>
+    pub fn contains<'b, K, V>(&self, key: &'a K) -> Result<bool>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
@@ -65,7 +69,7 @@ where
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
-    pub fn insert<'a, K, V>(&mut self, key: K, value: V) -> Result<()>
+    pub fn insert<'b, K, V>(&mut self, key: K, value: V) -> Result<()>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
@@ -78,7 +82,7 @@ where
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
-    pub fn remove<'a, K, V>(&mut self, key: K) -> Result<bool>
+    pub fn remove<'b, K, V>(&mut self, key: K) -> Result<bool>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
@@ -94,7 +98,7 @@ where
     }
 
     /// Creates a Merkle proof for a given value.
-    pub fn get_proof<'a, K, V>(&mut self, key: &K) -> Result<Vec<Proof>>
+    pub fn get_proof<'b, K, V>(&mut self, key: &K) -> Result<Vec<Proof>>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
@@ -106,7 +110,7 @@ where
     }
 
     /// Verifies a Merkle proof for a given value.
-    pub fn verify_proof<'a, K, V>(
+    pub fn verify_proof<'b, K, V>(
         &self,
         root_hash: H256,
         key: &K,
@@ -129,7 +133,7 @@ where
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
-    pub fn iter(&self) -> TrieIterator<D> {
+    pub fn iter(&self) -> JellyfishMerkleIterator<D> {
         self.inner.iter()
     }
 
@@ -146,9 +150,10 @@ where
     }
 }
 
-impl<D> Display for InnerTrieWrapper<D>
+impl<'a, D, H> Display for JMTWrapper<'a, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.inner)

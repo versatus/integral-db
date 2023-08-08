@@ -6,32 +6,36 @@ use std::{
 
 pub use left_right::ReadHandleFactory;
 use left_right::{ReadHandle, WriteHandle};
-use patriecia::{db::Database, inner::InnerTrie, H256};
+use patriecia::{
+    inner::InnerTrie, JellyfishMerkleTree, SimpleHasher, TreeReader, VersionedDatabase, H256,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{InnerTrieWrapper, LeftRightTrieError, Operation, Proof, Result};
+use crate::{JMTWrapper, LeftRightTrieError, Operation, Proof, Result};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
-pub struct LeftRightTrie<'a, K, V, D>
+pub struct LeftRightTrie<'a, K, V, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
-    pub read_handle: ReadHandle<InnerTrie<D>>,
-    pub write_handle: WriteHandle<InnerTrie<D>, Operation>,
+    pub read_handle: ReadHandle<JellyfishMerkleTree<'a, D, H>>,
+    pub write_handle: WriteHandle<JellyfishMerkleTree<'a, D, H>, Operation>,
     _marker: PhantomData<(K, V, &'a ())>,
 }
 
-impl<'a, D, K, V> LeftRightTrie<'a, K, V, D>
+impl<'a, D, K, V, H> LeftRightTrie<'a, K, V, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
     pub fn new(db: Arc<D>) -> Self {
-        let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
+        let (write_handle, read_handle) = left_right::new_from_empty(JellyfishMerkleTree::new(&db));
 
         Self {
             read_handle,
@@ -40,14 +44,14 @@ where
         }
     }
 
-    pub fn handle(&self) -> InnerTrieWrapper<D> {
+    pub fn handle(&self) -> JMTWrapper<D, H> {
         let read_handle = self
             .read_handle
             .enter()
             .map(|guard| guard.clone())
             .unwrap_or_default();
 
-        InnerTrieWrapper::new(read_handle)
+        JMTWrapper::new(read_handle)
     }
 
     /// Returns a vector of all entries within the trie
@@ -87,7 +91,7 @@ where
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
-    pub fn factory(&self) -> ReadHandleFactory<InnerTrie<D>> {
+    pub fn factory(&self) -> ReadHandleFactory<JellyfishMerkleTree<D, H>> {
         self.read_handle.factory()
     }
 
@@ -126,9 +130,10 @@ where
     }
 }
 
-impl<'a, D, K, V> PartialEq for LeftRightTrie<'a, K, V, D>
+impl<'a, D, K, V, H> PartialEq for LeftRightTrie<'a, K, V, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
@@ -137,14 +142,15 @@ where
     }
 }
 
-impl<'a, D, K, V> Default for LeftRightTrie<'a, K, V, D>
+impl<'a, D, K, V, H> Default for LeftRightTrie<'a, K, V, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
     fn default() -> Self {
-        let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
+        let (write_handle, read_handle) = left_right::new::<JellyfishMerkleTree<D, H>, Operation>();
         Self {
             read_handle,
             write_handle,
@@ -153,15 +159,16 @@ where
     }
 }
 
-impl<'a, D, K, V> From<D> for LeftRightTrie<'a, K, V, D>
+impl<'a, D, K, V, H> From<D> for LeftRightTrie<'a, K, V, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
     fn from(db: D) -> Self {
         let db = Arc::new(db);
-        let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
+        let (write_handle, read_handle) = left_right::new_from_empty(JellyfishMerkleTree::new(&db));
 
         Self {
             read_handle,
@@ -171,13 +178,14 @@ where
     }
 }
 
-impl<'a, D, K, V> From<InnerTrie<D>> for LeftRightTrie<'a, K, V, D>
+impl<'a, D, K, V, H> From<JellyfishMerkleTree<'a, D, H>> for LeftRightTrie<'a, K, V, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
-    fn from(other: InnerTrie<D>) -> Self {
+    fn from(other: JellyfishMerkleTree<D, H>) -> Self {
         let (write_handle, read_handle) = left_right::new_from_empty(other);
 
         Self {
@@ -188,9 +196,10 @@ where
     }
 }
 
-impl<'a, D, K, V> Clone for LeftRightTrie<'a, K, V, D>
+impl<'a, D, K, V, H> Clone for LeftRightTrie<'a, K, V, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
@@ -200,9 +209,10 @@ where
     }
 }
 
-impl<'a, D, K, V> Display for LeftRightTrie<'a, K, V, D>
+impl<'a, D, K, V, H> Display for LeftRightTrie<'a, K, V, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
@@ -215,7 +225,7 @@ where
 mod tests {
     use std::thread;
 
-    use patriecia::db::MemoryDB;
+    use patriecia::MockTreeStore;
 
     use super::*;
 
@@ -226,7 +236,7 @@ mod tests {
 
     #[test]
     fn should_store_arbitrary_values() {
-        let memdb = Arc::new(MemoryDB::new(true));
+        let memdb = Arc::new(MockTreeStore::new(true));
         let mut trie = LeftRightTrie::new(memdb);
 
         trie.insert("abcdefg", CustomValue { data: 100 });
@@ -238,7 +248,7 @@ mod tests {
 
     #[test]
     fn should_be_read_concurrently() {
-        let memdb = Arc::new(MemoryDB::new(true));
+        let memdb = Arc::new(MockTreeStore::new(true));
         let mut trie = LeftRightTrie::new(memdb);
 
         let total = 18;

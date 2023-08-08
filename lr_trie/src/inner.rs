@@ -1,13 +1,16 @@
 use left_right::Absorb;
 pub use left_right::ReadHandleFactory;
-use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
+use patriecia::{
+    db::Database, trie::Trie, JellyfishMerkleTree, SimpleHasher, TreeReader, VersionedDatabase,
+};
 use tracing::error;
 
 use crate::Operation;
 
-impl<D> Absorb<Operation> for InnerTrie<D>
+impl<'a, D, H> Absorb<Operation> for JellyfishMerkleTree<'a, D, H>
 where
-    D: Database,
+    D: TreeReader + VersionedDatabase,
+    H: SimpleHasher,
 {
     fn absorb_first(&mut self, operation: &mut Operation, _other: &Self) {
         match operation {
