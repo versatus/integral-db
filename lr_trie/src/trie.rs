@@ -5,7 +5,10 @@ use std::{
 
 pub use left_right::ReadHandleFactory;
 use left_right::{ReadHandle, WriteHandle};
-use patriecia::{JellyfishMerkleTree, SimpleHasher, TreeReader, VersionedDatabase, H256};
+use patriecia::{
+    JellyfishMerkleTree, KeyHash, Sha256, SimpleHasher, TreeReader, Version, VersionedDatabase,
+    H256,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{JellyfishMerkleTreeWrapper, LeftRightTrieError, Operation, Proof, Result};
@@ -95,39 +98,39 @@ where
         self.read_handle.factory()
     }
 
-    pub fn update(&mut self, key: K, value: V) {
-        self.insert(key, value);
+    pub fn update(&mut self, key: K, value: V, version: Version) {
+        self.insert(key, value, version);
     }
 
     pub fn publish(&mut self) {
         self.write_handle.publish();
     }
 
-    pub fn insert(&mut self, key: K, value: V) {
+    pub fn insert(&mut self, key: K, value: V, version: Version) {
         //TODO: revisit the serializer used to store things on the trie
-        let key = bincode::serialize(&key).unwrap_or_default();
-        let value = bincode::serialize(&value).unwrap_or_default();
+        let keyhash = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
+        let owned_value = bincode::serialize(&value).unwrap_or_default();
         self.write_handle
-            .append(Operation::Add(key, value))
+            .append(Operation::Add((keyhash, Some(owned_value)), version))
             .publish();
     }
 
-    pub fn extend(&mut self, values: Vec<(K, V)>) {
-        let mapped = values
-            .into_iter()
-            .map(|(key, value)| {
-                //TODO: revisit the serializer used to store things on the trie
-                let key = bincode::serialize(&key).unwrap_or_default();
-                let value = bincode::serialize(&value).unwrap_or_default();
+    // pub fn extend(&mut self, values: Vec<(K, V)>) {
+    //     let mapped = values
+    //         .into_iter()
+    //         .map(|(key, value)| {
+    //             //TODO: revisit the serializer used to store things on the trie
+    //             let key = bincode::serialize(&key).unwrap_or_default();
+    //             let value = bincode::serialize(&value).unwrap_or_default();
 
-                (key, value)
-            })
-            .collect();
+    //             (key, value)
+    //         })
+    //         .collect();
 
-        self.write_handle
-            .append(Operation::Extend(mapped))
-            .publish();
-    }
+    //     self.write_handle
+    //         .append(Operation::Extend(mapped))
+    //         .publish();
+    // }
 }
 
 impl<'a, D, K, V, H> PartialEq for LeftRightTrie<'a, K, V, D, H>
@@ -227,7 +230,7 @@ where
 mod tests {
     use std::thread;
 
-    use patriecia::MockTreeStore;
+    use patriecia::{MockTreeStore, VersionedDatabase};
 
     use super::*;
 
@@ -239,26 +242,26 @@ mod tests {
     #[test]
     fn should_store_arbitrary_values() {
         let memdb = MockTreeStore::new(true);
-        let mut trie = LeftRightTrie::new(memdb);
+        let mut trie = LeftRightTrie::<_, _, _, Sha256>::new(memdb);
 
-        trie.insert("abcdefg", CustomValue { data: 100 });
+        trie.insert("abcdefg", CustomValue { data: 100 }, 0);
 
-        let value: CustomValue = trie.handle().get(&String::from("abcdefg")).unwrap();
+        let value: CustomValue = trie.handle().get(&String::from("abcdefg"), 0).unwrap();
 
         assert_eq!(value, CustomValue { data: 100 });
     }
 
     #[test]
     fn should_be_read_concurrently() {
-        let memdb = MockTreeStore::new(true);
-        let mut trie = LeftRightTrie::new(memdb);
+        let db = MockTreeStore::new(true);
+        let mut trie = LeftRightTrie::<_, _, _, Sha256>::new(db);
 
         let total = 18;
 
         for n in 0..total {
             let key = format!("test-{n}");
 
-            trie.insert(key, CustomValue { data: 12345 });
+            trie.insert(key, CustomValue { data: 12345 }, n);
         }
 
         trie.publish();
@@ -269,11 +272,11 @@ mod tests {
             .map(|_| {
                 let reader = trie.handle();
                 thread::spawn(move || {
-                    assert_eq!(reader.len(), total);
+                    assert_eq!(db.len() as u64, total);
                     for n in 0..total {
                         let key = format!("test-{n}");
 
-                        let res: CustomValue = reader.get(&key).unwrap();
+                        let res: CustomValue = reader.get(&key, n).unwrap();
 
                         assert_eq!(res, CustomValue { data: 12345 });
                     }

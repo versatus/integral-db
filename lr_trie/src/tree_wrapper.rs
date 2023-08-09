@@ -1,11 +1,9 @@
-use std::{
-    fmt::{self, Debug, Display, Formatter},
-    sync::Arc,
-};
+use std::fmt::{self, Debug, Display, Formatter};
 
 pub use left_right::ReadHandleFactory;
 use patriecia::{
-    JellyfishMerkleIterator, JellyfishMerkleTree, SimpleHasher, TreeReader, VersionedDatabase, H256,
+    JellyfishMerkleTree, KeyHash, RootHash, Sha256, SimpleHasher, SparseMerkleProof, TreeReader,
+    Version, VersionedDatabase, VersionedTrie,
 };
 use serde::{Deserialize, Serialize};
 
@@ -36,16 +34,16 @@ where
         self.inner.clone()
     }
 
-    pub fn get<K, V>(&self, key: &K) -> Result<V>
+    pub fn get<K, V>(&self, key: &K, version: Version) -> Result<V>
     where
         K: for<'b> Deserialize<'b> + Serialize + Clone,
         V: for<'b> Deserialize<'b> + Serialize + Clone,
     {
-        let key = bincode::serialize(key).unwrap_or_default();
+        let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
 
         let raw_value_opt = self
             .inner
-            .get(&key)
+            .get(key, version)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))?;
 
         let raw_value = raw_value_opt.ok_or_else(|| {
@@ -58,95 +56,76 @@ where
         Ok(value)
     }
 
-    pub fn contains<'b, K, V>(&self, key: &'a K) -> Result<bool>
+    pub fn contains<'b, K, V>(&self, key: &'a K, version: Version) -> Result<bool>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
     {
-        let key = bincode::serialize(&key).unwrap_or_default();
+        let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         self.inner
-            .contains(&key)
+            .contains(key, version)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
-    pub fn insert<'b, K, V>(&mut self, key: K, value: V) -> Result<()>
+    pub fn insert<'b, K, V>(&mut self, key: K, value: V, version: Version) -> Result<()>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
     {
-        let key = bincode::serialize(&key).unwrap_or_default();
+        let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         let value = bincode::serialize(&value).unwrap_or_default();
 
-        self.inner
-            .insert(&key, &value)
-            .map_err(|err| LeftRightTrieError::Other(err.to_string()))
+        self.inner.put_value_set(vec![(key, Some(value))], version);
+        Ok(())
     }
 
-    pub fn remove<'b, K, V>(&mut self, key: K) -> Result<bool>
+    /// Returns true if the value for key at version is not contained within the tree
+    pub fn remove<'b, K, V>(&mut self, key: K, version: Version) -> Result<bool>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
     {
-        let key = bincode::serialize(&key).unwrap_or_default();
-        self.inner
-            .remove(&key)
-            .map_err(|err| LeftRightTrieError::Other(err.to_string()))
+        let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
+        self.inner.put_value_set(vec![(key, None)], version);
+        Ok(!self
+            .inner
+            .contains(key, version)
+            .map_err(|err| LeftRightTrieError::Other(err.to_string()))?)
     }
 
-    pub fn root_hash(&mut self) -> Result<H256> {
-        self.commit()
+    pub fn root_hash(&self, version: Version) -> Result<RootHash> {
+        self.inner
+            .get_root_hash(version)
+            .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
     /// Creates a Merkle proof for a given value.
-    pub fn get_proof<'b, K, V>(&mut self, key: &K) -> Result<Vec<Proof>>
+    pub fn get_proof<'b, K, V>(&mut self, key: &K, version: Version) -> Result<SparseMerkleProof<H>>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
     {
-        let key = bincode::serialize(key).unwrap_or_default();
+        let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         self.inner
-            .get_proof(&key)
+            .get_proof(key, version)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
     /// Verifies a Merkle proof for a given value.
     pub fn verify_proof<'b, K, V>(
         &self,
-        root_hash: H256,
-        key: &K,
-        proof: Vec<Proof>,
-    ) -> Result<Option<Proof>>
+        element_key: KeyHash,
+        version: Version,
+        expected_root_hash: RootHash,
+        proof: SparseMerkleProof<H>,
+    ) -> Result<()>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
     {
-        let key = bincode::serialize(key).unwrap_or_default();
-
         self.inner
-            .verify_proof(root_hash, &key, proof)
+            .verify_proof(element_key, version, expected_root_hash, proof)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
-    }
-
-    pub fn commit(&mut self) -> Result<H256> {
-        self.inner
-            .commit()
-            .map_err(|err| LeftRightTrieError::Other(err.to_string()))
-    }
-
-    pub fn iter(&self) -> JellyfishMerkleIterator<D> {
-        self.inner.iter()
-    }
-
-    pub fn len(&self) -> usize {
-        self.iter().count()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.inner.is_empty()
-    }
-
-    pub fn db(&self) -> Arc<D> {
-        self.inner.db()
     }
 }
 
