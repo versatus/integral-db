@@ -14,7 +14,7 @@ use crate::{LeftRightTrieError, Result};
 pub type Proof = Vec<u8>;
 
 #[derive(Debug, Clone)]
-pub struct JMTWrapper<'a, D, H>
+pub struct JellyfishMerkleTreeWrapper<'a, D, H>
 where
     D: TreeReader + VersionedDatabase,
     H: SimpleHasher,
@@ -22,7 +22,7 @@ where
     inner: JellyfishMerkleTree<'a, D, H>,
 }
 
-impl<'a, D, H> JMTWrapper<'a, D, H>
+impl<'a, D, H> JellyfishMerkleTreeWrapper<'a, D, H>
 where
     D: TreeReader + VersionedDatabase,
     H: SimpleHasher,
@@ -150,12 +150,12 @@ where
     }
 }
 
-impl<'a, D, H> Display for JMTWrapper<'a, D, H>
+impl<'a, D, H> Display for JellyfishMerkleTreeWrapper<'a, D, H>
 where
     D: TreeReader + VersionedDatabase,
     H: SimpleHasher,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner)
+        write!(f, "{:?}", self.inner)
     }
 }

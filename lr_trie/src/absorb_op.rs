@@ -27,6 +27,6 @@ where
     }
 
     fn sync_with(&mut self, first: &Self) {
-        *self = *first.clone();
+        *self = first.clone();
     }
 }

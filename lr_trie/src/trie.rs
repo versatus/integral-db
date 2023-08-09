@@ -1,7 +1,6 @@
 use std::{
     fmt::{self, Debug, Display, Formatter},
     marker::PhantomData,
-    sync::Arc,
 };
 
 pub use left_right::ReadHandleFactory;
@@ -9,7 +8,7 @@ use left_right::{ReadHandle, WriteHandle};
 use patriecia::{JellyfishMerkleTree, SimpleHasher, TreeReader, VersionedDatabase, H256};
 use serde::{Deserialize, Serialize};
 
-use crate::{JMTWrapper, LeftRightTrieError, Operation, Proof, Result};
+use crate::{JellyfishMerkleTreeWrapper, LeftRightTrieError, Operation, Proof, Result};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
@@ -42,14 +41,17 @@ where
         }
     }
 
-    pub fn handle(&self) -> JMTWrapper<D, H> {
+    pub fn handle(&self) -> JellyfishMerkleTreeWrapper<D, H> {
         let read_handle = self
             .read_handle
             .enter()
             .map(|guard| guard.clone())
-            .unwrap_or_default();
+            .unwrap_or({
+                let db = D::default();
+                JellyfishMerkleTree::new(&db)
+            });
 
-        JMTWrapper::new(read_handle)
+        JellyfishMerkleTreeWrapper::new(read_handle)
     }
 
     /// Returns a vector of all entries within the trie
@@ -148,7 +150,10 @@ where
     V: Serialize + Deserialize<'a>,
 {
     fn default() -> Self {
-        let (write_handle, read_handle) = left_right::new::<JellyfishMerkleTree<D, H>, Operation>();
+        let db = D::default();
+        let jmt = JellyfishMerkleTree::new(&db);
+        let (write_handle, read_handle) =
+            left_right::new_from_empty::<JellyfishMerkleTree<D, H>, Operation>(jmt);
         Self {
             read_handle,
             write_handle,
@@ -245,7 +250,7 @@ mod tests {
 
     #[test]
     fn should_be_read_concurrently() {
-        let memdb = Arc::new(MockTreeStore::new(true));
+        let memdb = MockTreeStore::new(true);
         let mut trie = LeftRightTrie::new(memdb);
 
         let total = 18;
