@@ -6,9 +6,7 @@ use std::{
 
 pub use left_right::ReadHandleFactory;
 use left_right::{ReadHandle, WriteHandle};
-use patriecia::{
-    inner::InnerTrie, JellyfishMerkleTree, SimpleHasher, TreeReader, VersionedDatabase, H256,
-};
+use patriecia::{JellyfishMerkleTree, SimpleHasher, TreeReader, VersionedDatabase, H256};
 use serde::{Deserialize, Serialize};
 
 use crate::{JMTWrapper, LeftRightTrieError, Operation, Proof, Result};
@@ -34,7 +32,7 @@ where
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
-    pub fn new(db: Arc<D>) -> Self {
+    pub fn new(db: D) -> Self {
         let (write_handle, read_handle) = left_right::new_from_empty(JellyfishMerkleTree::new(&db));
 
         Self {
@@ -167,7 +165,6 @@ where
     V: Serialize + Deserialize<'a>,
 {
     fn from(db: D) -> Self {
-        let db = Arc::new(db);
         let (write_handle, read_handle) = left_right::new_from_empty(JellyfishMerkleTree::new(&db));
 
         Self {
@@ -236,7 +233,7 @@ mod tests {
 
     #[test]
     fn should_store_arbitrary_values() {
-        let memdb = Arc::new(MockTreeStore::new(true));
+        let memdb = MockTreeStore::new(true);
         let mut trie = LeftRightTrie::new(memdb);
 
         trie.insert("abcdefg", CustomValue { data: 100 });
