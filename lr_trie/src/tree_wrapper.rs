@@ -3,7 +3,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 pub use left_right::ReadHandleFactory;
 use patriecia::{
     JellyfishMerkleIterator, JellyfishMerkleTree, KeyHash, RootHash, Sha256, SimpleHasher,
-    SparseMerkleProof, TreeReader, Version, VersionedDatabase, VersionedTrie,
+    SparseMerkleProof, TreeReader, TreeWriter, Version, VersionedDatabase, VersionedTrie,
 };
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +14,7 @@ pub type Proof = Vec<u8>;
 #[derive(Debug, Clone)]
 pub struct JellyfishMerkleTreeWrapper<'a, D, H>
 where
-    D: TreeReader + VersionedDatabase,
+    D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
 {
     inner: JellyfishMerkleTree<'a, D, H>,
@@ -22,7 +22,7 @@ where
 
 impl<'a, D, H> JellyfishMerkleTreeWrapper<'a, D, H>
 where
-    D: TreeReader + VersionedDatabase,
+    D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
 {
     pub fn new(inner: JellyfishMerkleTree<'a, D, H>) -> Self {
@@ -75,8 +75,14 @@ where
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         let value = bincode::serialize(&value).unwrap_or_default();
 
-        self.inner.put_value_set(vec![(key, Some(value))], version);
-        Ok(())
+        match self.inner.put_value_set(vec![(key, Some(value))], version) {
+            Ok((_, batch)) => self
+                .inner
+                .reader()
+                .write_node_batch(&batch.node_batch)
+                .map_err(|err| LeftRightTrieError::Other(err.to_string())),
+            Err(err) => return Err(LeftRightTrieError::Other(err.to_string())),
+        }
     }
 
     /// Returns true if the value for key at version is not contained within the tree
@@ -86,7 +92,14 @@ where
         V: Serialize + Deserialize<'a>,
     {
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
-        self.inner.put_value_set(vec![(key, None)], version);
+        match self.inner.put_value_set(vec![(key, None)], version) {
+            Ok((_, batch)) => self
+                .inner
+                .reader()
+                .write_node_batch(&batch.node_batch)
+                .map_err(|err| LeftRightTrieError::Other(err.to_string()))?,
+            Err(err) => return Err(LeftRightTrieError::Other(err.to_string())),
+        }
         Ok(!self
             .inner
             .contains(key, version)
@@ -156,7 +169,7 @@ where
 
 impl<'a, D, H> Display for JellyfishMerkleTreeWrapper<'a, D, H>
 where
-    D: TreeReader + VersionedDatabase,
+    D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
