@@ -242,9 +242,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::thread::{spawn, JoinHandle};
+    // use std::thread::{spawn, JoinHandle};
 
-    use patriecia::{MockTreeStore, VersionedDatabase};
+    use patriecia::MockTreeStore;
 
     use super::*;
 
