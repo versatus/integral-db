@@ -75,6 +75,7 @@ where
         Ok(self.handle()?.version())
     }
 
+    /// Get the `RootHash` at the latest `LatestVersion`.
     pub fn root_latest(&self) -> Result<RootHash> {
         self.root(self.version()?)
     }
@@ -82,10 +83,9 @@ where
     pub fn get_proof(&'a mut self, key: &K, version: Version) -> Result<SparseMerkleProof<H>>
     where
         K: Serialize + Deserialize<'a>,
-        V: Serialize + Deserialize<'a>,
     {
         self.handle()?
-            .get_proof::<K, V>(key, version)
+            .get_proof::<K>(key, version)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
@@ -98,10 +98,9 @@ where
     ) -> Result<()>
     where
         K: Serialize + Deserialize<'a>,
-        V: Serialize + Deserialize<'a>,
     {
         self.handle()?
-            .verify_proof::<K, V>(element_key, version, expected_root_hash, proof)
+            .verify_proof::<K>(element_key, version, expected_root_hash, proof)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
@@ -201,7 +200,8 @@ where
 /// let db = Default::default();
 /// let lr_trie = LeftRightTree::new(&db);
 ///
-/// let clone = LeftRightTree::from_clone(lr_trie.handle().inner().clone());
+/// let clone = LeftRightTree::from_clone(lr_trie.handle().inner());
+/// assert_eq!(lr_trie, clone);
 /// ```
 trait SubClone<'a, D, H>
 where
@@ -269,39 +269,41 @@ mod tests {
         assert_eq!(value, CustomValue { data: 100 });
     }
 
-    // #[ignore = "currently this test fails due to lifetimes"]
-    // #[test]
-    // fn should_be_read_concurrently() {
-    //     let db = MockTreeStore::new(true);
-    //     let mut trie = LeftRightTrie::<_, _, _, Sha256>::new(&db);
+    #[ignore = "currently does not compile due to lifetimes"]
+    #[test]
+    fn should_be_read_concurrently() {
+        let db = MockTreeStore::new(true);
+        let mut trie = LeftRightTrie::<_, _, _, Sha256>::new(&db);
 
-    //     let total = 18;
+        let total = 18;
 
-    //     for n in 0..total {
-    //         let key = format!("test-{n}");
+        for n in 0..total {
+            let key = format!("test-{n}");
 
-    //         trie.insert(key, CustomValue { data: 12345 }, n);
-    //     }
+            trie.insert(key, CustomValue { data: 12345 }, n);
+        }
 
-    //     trie.publish();
+        trie.publish();
 
-    //     // NOTE Spawn 10 threads and 10 readers that should report the exact same value
-    //     let mut handles: Vec<JoinHandle<()>> = Vec::with_capacity(10);
-    //     for _ in 0..10 {
-    //         let reader = &trie.handle().unwrap();
-    //         handles.push(spawn(move || {
-    //             assert_eq!(db.len() as u64, total);
-    //             for n in 0..total {
-    //                 let key = format!("test-{n}");
+        // NOTE Spawn 10 threads and 10 readers that should report the exact same value
+        // let mut handles: Vec<JoinHandle<()>> = Vec::with_capacity(10);
+        // for _ in 0..10 {
+        //     let reader = &trie.handle().unwrap();
+        //     handles.push(spawn(move || {
+        //         assert_eq!(db.len() as u64, total);
+        //         for n in 0..total {
+        //             let key = format!("test-{n}");
 
-    //                 let res: CustomValue = reader.get(&key, n).unwrap();
+        //             let res: CustomValue = reader.get(&key, n).unwrap();
 
-    //                 assert_eq!(res, CustomValue { data: 12345 });
-    //             }
-    //         }))
-    //     }
-    //     for handle in handles.iter() {
-    //         handle.join().unwrap();
-    //     }
-    // }
+        //             assert_eq!(res, CustomValue { data: 12345 });
+        //         }
+        //     }))
+        // }
+        // for handle in handles.iter() {
+        //     handle.join().unwrap();
+        // }
+
+        todo!()
+    }
 }

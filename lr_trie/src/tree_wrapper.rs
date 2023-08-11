@@ -56,10 +56,9 @@ where
         Ok(value)
     }
 
-    pub fn contains<'b, K, V>(&self, key: &'a K, version: Version) -> Result<bool>
+    pub fn contains<'b, K>(&self, key: &'a K, version: Version) -> Result<bool>
     where
         K: Serialize + Deserialize<'a>,
-        V: Serialize + Deserialize<'a>,
     {
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         self.inner
@@ -86,10 +85,9 @@ where
     }
 
     /// Returns true if the value for key at version is not contained within the tree
-    pub fn remove<'b, K, V>(&mut self, key: K, version: Version) -> Result<bool>
+    pub fn remove<'b, K>(&mut self, key: K, version: Version) -> Result<bool>
     where
         K: Serialize + Deserialize<'a>,
-        V: Serialize + Deserialize<'a>,
     {
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         match self.inner.put_value_set(vec![(key, None)], version) {
@@ -113,10 +111,9 @@ where
     }
 
     /// Creates a Merkle proof for a given value.
-    pub fn get_proof<'b, K, V>(&mut self, key: &K, version: Version) -> Result<SparseMerkleProof<H>>
+    pub fn get_proof<'b, K>(&mut self, key: &K, version: Version) -> Result<SparseMerkleProof<H>>
     where
         K: Serialize + Deserialize<'a>,
-        V: Serialize + Deserialize<'a>,
     {
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         self.inner
@@ -125,7 +122,7 @@ where
     }
 
     /// Verifies a Merkle proof for a given value.
-    pub fn verify_proof<'b, K, V>(
+    pub fn verify_proof<'b, K>(
         &self,
         element_key: KeyHash,
         version: Version,
@@ -134,7 +131,6 @@ where
     ) -> Result<()>
     where
         K: Serialize + Deserialize<'a>,
-        V: Serialize + Deserialize<'a>,
     {
         self.inner
             .verify_proof(element_key, version, expected_root_hash, proof)
@@ -174,5 +170,34 @@ where
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.inner)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use patriecia::MockTreeStore;
+
+    use super::*;
+
+    #[test]
+    fn test_wrapper_can_add_remove_values() {
+        let db = MockTreeStore::default();
+        let jmt = JellyfishMerkleTree::<_, Sha256>::new(&db);
+        let mut wrapper = JellyfishMerkleTreeWrapper::new(jmt);
+
+        let key = "Ada Lovelace";
+        let value = "Analytical Engine";
+        let mut version = 0;
+
+        wrapper.insert(key, value, version).unwrap();
+        let contains_key = wrapper.contains(&key, version).unwrap();
+        assert!(contains_key);
+
+        version += 1; // update version when adding or removing
+        wrapper.remove(key, version).unwrap();
+        let contains_key = wrapper.contains(&key, version).unwrap();
+        assert!(!contains_key);
+
+        assert_eq!(wrapper.version(), 1);
     }
 }
