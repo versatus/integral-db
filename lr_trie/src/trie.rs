@@ -6,12 +6,12 @@ use std::{
 pub use left_right::ReadHandleFactory;
 use left_right::{ReadHandle, WriteHandle};
 use patriecia::{
-    JellyfishMerkleTree, KeyHash, Sha256, SimpleHasher, TreeReader, Version, VersionedDatabase,
-    H256,
+    JellyfishMerkleTree, KeyHash, RootHash, Sha256, SimpleHasher, SparseMerkleProof, TreeReader,
+    Version, VersionedDatabase,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{JellyfishMerkleTreeWrapper, LeftRightTrieError, Operation, Proof, Result};
+use crate::{JellyfishMerkleTreeWrapper, LeftRightTrieError, Operation, Result};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
@@ -63,34 +63,44 @@ where
     }
 
     pub fn len(&self) -> usize {
-        self.handle().iter().count()
+        self.handle().len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.handle().len() == 0
+        self.handle().is_empty()
     }
 
-    pub fn root(&self) -> Option<H256> {
-        self.handle().root_hash().ok()
+    pub fn root_opt(&self, version: Version) -> Option<RootHash> {
+        self.handle().root_hash(version).ok()
     }
 
-    pub fn get_proof(&mut self, key: &K) -> Result<Vec<Proof>>
+    pub fn version(&self) -> Version {
+        self.handle().version()
+    }
+
+    pub fn get_proof(&mut self, key: &K, version: Version) -> Result<SparseMerkleProof<H>>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
     {
         self.handle()
-            .get_proof::<K, V>(key)
+            .get_proof::<K, V>(key, version)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
-    pub fn verify_proof(&self, root: H256, key: &K, proof: Vec<Proof>) -> Result<Option<Proof>>
+    pub fn verify_proof(
+        &self,
+        element_key: KeyHash,
+        version: Version,
+        expected_root_hash: RootHash,
+        proof: SparseMerkleProof<H>,
+    ) -> Result<()>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
     {
         self.handle()
-            .verify_proof::<K, V>(root, key, proof)
+            .verify_proof::<K, V>(element_key, version, expected_root_hash, proof)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
@@ -141,7 +151,7 @@ where
     V: Serialize + Deserialize<'a>,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.handle().root_hash() == other.handle().root_hash()
+        self.root_opt(self.version()) == other.root_opt(other.version())
     }
 }
 

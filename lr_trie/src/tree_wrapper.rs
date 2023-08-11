@@ -2,8 +2,8 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 pub use left_right::ReadHandleFactory;
 use patriecia::{
-    JellyfishMerkleTree, KeyHash, RootHash, Sha256, SimpleHasher, SparseMerkleProof, TreeReader,
-    Version, VersionedDatabase, VersionedTrie,
+    JellyfishMerkleIterator, JellyfishMerkleTree, KeyHash, RootHash, Sha256, SimpleHasher,
+    SparseMerkleProof, TreeReader, Version, VersionedDatabase, VersionedTrie,
 };
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,7 @@ where
     D: TreeReader + VersionedDatabase,
     H: SimpleHasher,
 {
-    pub fn new(inner: JellyfishMerkleTree<D, H>) -> Self {
+    pub fn new(inner: JellyfishMerkleTree<'a, D, H>) -> Self {
         Self { inner }
     }
 
@@ -126,6 +126,31 @@ where
         self.inner
             .verify_proof(element_key, version, expected_root_hash, proof)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
+    }
+
+    /// Create a [`JellyfishMerkleIterator`] from the reader: R, to iterate
+    /// over values in the tree starting at the given key and version.
+    pub fn iter(
+        &self,
+        version: Version,
+        starting_key: KeyHash,
+    ) -> Result<JellyfishMerkleIterator<D>> {
+        self.inner
+            .iter(version, starting_key)
+            .map_err(|err| LeftRightTrieError::Other(err.to_string()))
+    }
+
+    /// Get the number of `Some(value)`s from the latest version of the tree stored in the `VersionedDatabase`.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    pub fn version(&self) -> Version {
+        self.inner.version()
     }
 }
 

@@ -14,7 +14,7 @@ where
         match operation {
             // TODO: report errors via instrumentation
             Operation::Add(key_val, vers) => {
-                if let Err(err) = self.put_value_set(vec![*key_val], *vers) {
+                if let Err(err) = self.put_value_set(vec![key_val.to_owned()], *vers) {
                     error!("failed to insert key: {err}");
                 }
             }
