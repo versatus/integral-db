@@ -7,7 +7,7 @@ use tracing::error;
 
 use crate::Operation;
 
-impl<'a, D, H> Absorb<Operation> for JellyfishMerkleTree<'a, D, H>
+impl<D, H> Absorb<Operation> for JellyfishMerkleTree<D, H>
 where
     D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,

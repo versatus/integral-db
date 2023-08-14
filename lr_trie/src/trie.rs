@@ -1,6 +1,7 @@
 use std::{
     fmt::{self, Debug, Display, Formatter},
     marker::PhantomData,
+    sync::Arc,
 };
 
 pub use left_right::ReadHandleFactory;
@@ -22,8 +23,8 @@ where
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
-    pub read_handle: ReadHandle<JellyfishMerkleTree<'a, D, H>>,
-    pub write_handle: WriteHandle<JellyfishMerkleTree<'a, D, H>, Operation>,
+    pub read_handle: ReadHandle<JellyfishMerkleTree<D, H>>,
+    pub write_handle: WriteHandle<JellyfishMerkleTree<D, H>, Operation>,
     _marker: PhantomData<(K, V, &'a ())>,
 }
 
@@ -34,7 +35,7 @@ where
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
-    pub fn new<'d: 'a>(db: &'d D) -> Self {
+    pub fn new(db: Arc<D>) -> Self {
         let (write_handle, read_handle) = left_right::new_from_empty(JellyfishMerkleTree::new(db));
 
         Self {
@@ -44,13 +45,13 @@ where
         }
     }
 
-    pub fn handle(&self) -> Result<JellyfishMerkleTreeWrapper<'a, D, H>> {
+    pub fn handle(&self) -> Result<JellyfishMerkleTreeWrapper<D, H>> {
         if let Some(read_handle) = self.read_handle.enter().map(|guard| guard.clone()) {
-            return Ok(JellyfishMerkleTreeWrapper::new(read_handle));
+            Ok(JellyfishMerkleTreeWrapper::new(read_handle))
         } else {
-            return Err(LeftRightTrieError::Other(
+            Err(LeftRightTrieError::Other(
                 "failed to retrieve read handle".to_string(),
-            ));
+            ))
         }
     }
 
@@ -104,7 +105,7 @@ where
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
-    pub fn factory(&'a self) -> ReadHandleFactory<JellyfishMerkleTree<'a, D, H>> {
+    pub fn factory(&'a self) -> ReadHandleFactory<JellyfishMerkleTree<D, H>> {
         self.read_handle.factory()
     }
 
@@ -155,14 +156,14 @@ where
     }
 }
 
-impl<'a, D, K, V, H> From<&'a D> for LeftRightTrie<'a, K, V, D, H>
+impl<'a, D, K, V, H> From<Arc<D>> for LeftRightTrie<'a, K, V, D, H>
 where
     D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
-    fn from(db: &'a D) -> Self {
+    fn from(db: Arc<D>) -> Self {
         let (write_handle, read_handle) = left_right::new_from_empty(JellyfishMerkleTree::new(db));
 
         Self {
@@ -173,14 +174,14 @@ where
     }
 }
 
-impl<'a, D, K, V, H> From<JellyfishMerkleTree<'a, D, H>> for LeftRightTrie<'a, K, V, D, H>
+impl<'a, D, K, V, H> From<JellyfishMerkleTree<D, H>> for LeftRightTrie<'a, K, V, D, H>
 where
     D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
-    fn from(other: JellyfishMerkleTree<'a, D, H>) -> Self {
+    fn from(other: JellyfishMerkleTree<D, H>) -> Self {
         let (write_handle, read_handle) = left_right::new_from_empty(other);
 
         Self {
@@ -208,7 +209,7 @@ where
     D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
 {
-    fn from_clone(inner: JellyfishMerkleTree<'a, D, H>) -> Self;
+    fn from_clone(inner: JellyfishMerkleTree<D, H>) -> Self;
 }
 
 impl<'a, D, K, V, H> SubClone<'a, D, H> for LeftRightTrie<'a, K, V, D, H>
@@ -218,7 +219,7 @@ where
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
-    fn from_clone(inner: JellyfishMerkleTree<'a, D, H>) -> Self {
+    fn from_clone(inner: JellyfishMerkleTree<D, H>) -> Self {
         LeftRightTrie::from(inner)
     }
 }
@@ -254,8 +255,8 @@ mod tests {
 
     #[test]
     fn should_store_arbitrary_values() {
-        let db = MockTreeStore::new(true);
-        let mut trie = LeftRightTrie::<_, _, _, Sha256>::new(&db);
+        let db = Arc::new(MockTreeStore::new(true));
+        let mut trie = LeftRightTrie::<_, _, _, Sha256>::new(db);
 
         trie.insert("abcdefg", CustomValue { data: 100 }, 0);
 
@@ -271,8 +272,8 @@ mod tests {
     #[ignore = "currently does not compile due to lifetimes"]
     #[test]
     fn should_be_read_concurrently() {
-        let db = MockTreeStore::new(true);
-        let mut trie = LeftRightTrie::<_, _, _, Sha256>::new(&db);
+        let db = Arc::new(MockTreeStore::new(true));
+        let mut trie = LeftRightTrie::<_, _, _, Sha256>::new(db);
 
         let total = 18;
 

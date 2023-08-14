@@ -12,25 +12,25 @@ use crate::{LeftRightTrieError, Result};
 pub type Proof = Vec<u8>;
 
 #[derive(Debug, Clone)]
-pub struct JellyfishMerkleTreeWrapper<'a, D, H>
+pub struct JellyfishMerkleTreeWrapper<D, H>
 where
     D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
 {
-    inner: JellyfishMerkleTree<'a, D, H>,
+    inner: JellyfishMerkleTree<D, H>,
 }
 
-impl<'a, D, H> JellyfishMerkleTreeWrapper<'a, D, H>
+impl<D, H> JellyfishMerkleTreeWrapper<D, H>
 where
     D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
 {
-    pub fn new(inner: JellyfishMerkleTree<'a, D, H>) -> Self {
+    pub fn new(inner: JellyfishMerkleTree<D, H>) -> Self {
         Self { inner }
     }
 
     /// Produces a clone of the underlying trie
-    pub fn inner(&self) -> JellyfishMerkleTree<'a, D, H> {
+    pub fn inner(&self) -> JellyfishMerkleTree<D, H> {
         self.inner.clone()
     }
 
@@ -56,9 +56,9 @@ where
         Ok(value)
     }
 
-    pub fn contains<'b, K>(&self, key: &'a K, version: Version) -> Result<bool>
+    pub fn contains<'b, K>(&self, key: &'b K, version: Version) -> Result<bool>
     where
-        K: Serialize + Deserialize<'a>,
+        K: Serialize + Deserialize<'b>,
     {
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         self.inner
@@ -68,8 +68,8 @@ where
 
     pub fn insert<'b, K, V>(&mut self, key: K, value: V, version: Version) -> Result<()>
     where
-        K: Serialize + Deserialize<'a>,
-        V: Serialize + Deserialize<'a>,
+        K: Serialize + Deserialize<'b>,
+        V: Serialize + Deserialize<'b>,
     {
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         let value = bincode::serialize(&value).unwrap_or_default();
@@ -80,14 +80,14 @@ where
                 .reader()
                 .write_node_batch(&batch.node_batch)
                 .map_err(|err| LeftRightTrieError::Other(err.to_string())),
-            Err(err) => return Err(LeftRightTrieError::Other(err.to_string())),
+            Err(err) => Err(LeftRightTrieError::Other(err.to_string())),
         }
     }
 
     /// Returns true if the value for key at version is not contained within the tree
     pub fn remove<'b, K>(&mut self, key: K, version: Version) -> Result<bool>
     where
-        K: Serialize + Deserialize<'a>,
+        K: Serialize + Deserialize<'b>,
     {
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         match self.inner.put_value_set(vec![(key, None)], version) {
@@ -113,7 +113,7 @@ where
     /// Creates a Merkle proof for a given value.
     pub fn get_proof<'b, K>(&mut self, key: &K, version: Version) -> Result<SparseMerkleProof<H>>
     where
-        K: Serialize + Deserialize<'a>,
+        K: Serialize + Deserialize<'b>,
     {
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         self.inner
@@ -130,7 +130,7 @@ where
         proof: SparseMerkleProof<H>,
     ) -> Result<()>
     where
-        K: Serialize + Deserialize<'a>,
+        K: Serialize + Deserialize<'b>,
     {
         self.inner
             .verify_proof(element_key, version, expected_root_hash, proof)
@@ -163,7 +163,7 @@ where
     }
 }
 
-impl<'a, D, H> Display for JellyfishMerkleTreeWrapper<'a, D, H>
+impl<D, H> Display for JellyfishMerkleTreeWrapper<D, H>
 where
     D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
@@ -175,14 +175,16 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use patriecia::MockTreeStore;
 
     use super::*;
 
     #[test]
     fn test_wrapper_can_add_remove_values() {
-        let db = MockTreeStore::default();
-        let jmt = JellyfishMerkleTree::<_, Sha256>::new(&db);
+        let db = Arc::new(MockTreeStore::default());
+        let jmt = JellyfishMerkleTree::<_, Sha256>::new(db);
         let mut wrapper = JellyfishMerkleTreeWrapper::new(jmt);
 
         let key = "Ada Lovelace";
