@@ -289,7 +289,7 @@ mod tests {
         [0..10]
             .iter()
             .map(|_| {
-                let reader = trie.handle().unwrap().clone();
+                let reader = trie.handle().unwrap();
                 thread::spawn(move || {
                     assert_eq!(reader.len() as u64, total);
                     for n in 0..total {
