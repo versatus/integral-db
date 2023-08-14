@@ -242,7 +242,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    // use std::thread::{spawn, JoinHandle};
+    use std::thread;
 
     use patriecia::MockTreeStore;
 
@@ -286,23 +286,24 @@ mod tests {
         trie.publish();
 
         // NOTE Spawn 10 threads and 10 readers that should report the exact same value
-        // let mut handles: Vec<JoinHandle<()>> = Vec::with_capacity(10);
-        // for _ in 0..10 {
-        //     let reader = &trie.handle().unwrap();
-        //     handles.push(spawn(move || {
-        //         assert_eq!(db.len() as u64, total);
-        //         for n in 0..total {
-        //             let key = format!("test-{n}");
+        [0..10]
+            .iter()
+            .map(|_| {
+                let reader = trie.handle().unwrap();
+                thread::spawn(move || {
+                    assert_eq!(reader.len() as u64, total);
+                    for n in 0..total {
+                        let key = format!("test-{n}");
 
-        //             let res: CustomValue = reader.get(&key, n).unwrap();
+                        let res: CustomValue = reader.get(&key, n).unwrap();
 
-        //             assert_eq!(res, CustomValue { data: 12345 });
-        //         }
-        //     }))
-        // }
-        // for handle in handles.iter() {
-        //     handle.join().unwrap();
-        // }
+                        assert_eq!(res, CustomValue { data: 12345 });
+                    }
+                })
+            })
+            .for_each(|handle| {
+                handle.join().unwrap();
+            });
 
         todo!()
     }
