@@ -30,7 +30,7 @@ where
     }
 
     /// Produces a clone of the underlying trie
-    pub fn inner(&self) -> JellyfishMerkleTree<D, H> {
+    pub fn inner(&self) -> JellyfishMerkleTree<'a, D, H> {
         self.inner.clone()
     }
 

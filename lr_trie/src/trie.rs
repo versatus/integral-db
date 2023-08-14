@@ -44,7 +44,7 @@ where
         }
     }
 
-    pub fn handle(&self) -> Result<JellyfishMerkleTreeWrapper<D, H>> {
+    pub fn handle(&self) -> Result<JellyfishMerkleTreeWrapper<'a, D, H>> {
         if let Some(read_handle) = self.read_handle.enter().map(|guard| guard.clone()) {
             return Ok(JellyfishMerkleTreeWrapper::new(read_handle));
         } else {
@@ -104,7 +104,7 @@ where
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
-    pub fn factory(&'a self) -> ReadHandleFactory<JellyfishMerkleTree<D, H>> {
+    pub fn factory(&'a self) -> ReadHandleFactory<JellyfishMerkleTree<'a, D, H>> {
         self.read_handle.factory()
     }
 
@@ -242,9 +242,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
-
     use patriecia::MockTreeStore;
+    use std::thread;
 
     use super::*;
 
@@ -289,7 +288,7 @@ mod tests {
         [0..10]
             .iter()
             .map(|_| {
-                let reader = trie.handle().unwrap();
+                let reader = trie.handle().unwrap().clone();
                 thread::spawn(move || {
                     assert_eq!(reader.len() as u64, total);
                     for n in 0..total {
@@ -304,7 +303,5 @@ mod tests {
             .for_each(|handle| {
                 handle.join().unwrap();
             });
-
-        todo!()
     }
 }
