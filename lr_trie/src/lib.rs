@@ -1,11 +1,12 @@
-/// This crate contains a left-right wrapped, evmap-backed, Merkle-Patricia Trie
-/// heavily inspired by https://github.com/carver/eth-trie.rs which is a fork of https://github.com/citahub/cita-trie
+/// This crate contains a left-right wrapped, evmap-backed JellyfishMerkleTree,
+/// which is a modified version Penumbra & Diem's JellyfishMerkleTree to suite
+/// our concurrent read and write needs.
 pub use patriecia::H256;
 
-mod inner;
-mod inner_wrapper;
+mod absorb_op;
 pub mod op;
 mod result;
+mod tree_wrapper;
 mod trie;
 
-pub use crate::{inner::*, inner_wrapper::*, op::*, result::*, trie::*};
+pub use crate::{absorb_op::*, op::*, result::*, tree_wrapper::*, trie::*};
