@@ -226,14 +226,18 @@ where
 /// providing the method with a valid clone of a `JellyfishMerkleTree`.
 ///
 /// # Example:
-/// ```rust, ignore
-/// let db = Default::default();
-/// let lr_trie = LeftRightTree::new(&db);
+/// ```rust, ignore = "passes at lr_trie/src/trie.rs but fails at src/trie.rs doc test"
+/// use patriecia::{MockTreeStore, Sha256};
+/// use crate::integral_db::{LeftRightTrie, SubClone};
+/// use std::sync::Arc;
 ///
-/// let clone = LeftRightTree::from_clone(lr_trie.handle().inner());
+/// let db = Arc::new(MockTreeStore::default());
+/// let lr_trie = LeftRightTrie::<String, String, MockTreeStore, Sha256>::new(db);
+///
+/// let clone = LeftRightTrie::from_clone(lr_trie.handle().unwrap().inner());
 /// assert_eq!(lr_trie, clone);
 /// ```
-trait SubClone<'a, D, H>
+pub trait SubClone<'a, D, H>
 where
     D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
