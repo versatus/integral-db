@@ -1,9 +1,13 @@
-use std::fmt::{self, Debug, Display, Formatter};
+use std::{
+    collections::HashMap,
+    fmt::{self, Debug, Display, Formatter},
+};
 
 pub use left_right::ReadHandleFactory;
 use patriecia::{
-    JellyfishMerkleIterator, JellyfishMerkleTree, KeyHash, RootHash, Sha256, SimpleHasher,
-    SparseMerkleProof, TreeReader, TreeWriter, Version, VersionedDatabase, VersionedTrie,
+    JellyfishMerkleIterator, JellyfishMerkleTree, KeyHash, OwnedValue, RootHash, Sha256,
+    SimpleHasher, SparseMerkleProof, TreeReader, TreeWriter, Version, VersionedDatabase,
+    VersionedTrie,
 };
 use serde::{Deserialize, Serialize};
 
@@ -34,6 +38,7 @@ where
         self.inner.clone()
     }
 
+    /// Get the value associated with a key at a specified `Version`.
     pub fn get<K, V>(&self, key: &K, version: Version) -> Result<V>
     where
         K: for<'b> Deserialize<'b> + Serialize + Clone,
@@ -56,6 +61,7 @@ where
         Ok(value)
     }
 
+    /// Returns true if the inner tree contains the specified key at `Version`.
     pub fn contains<'b, K>(&self, key: &'b K, version: Version) -> Result<bool>
     where
         K: Serialize + Deserialize<'b>,
@@ -66,6 +72,8 @@ where
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
+    /// Insert a key-value pair into the tree at a specified `Version` and update the database
+    /// from the node batch produced.
     pub fn insert<'b, K, V>(&mut self, key: K, value: V, version: Version) -> Result<()>
     where
         K: Serialize + Deserialize<'b>,
@@ -84,7 +92,10 @@ where
         }
     }
 
-    /// Returns true if the value for key at version is not contained within the tree
+    /// Given a key, remove a value from the tree at a specified `Version` and update the database
+    /// from the node batch produced.
+    ///
+    /// Returns true if the value for key at version is no longer contained within the tree.
     pub fn remove<'b, K>(&mut self, key: K, version: Version) -> Result<bool>
     where
         K: Serialize + Deserialize<'b>,
@@ -104,6 +115,7 @@ where
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))?)
     }
 
+    /// Get the `RootHash` of a `JellyfishMerkleTree` at a specified `Version`.
     pub fn root_hash(&self, version: Version) -> Result<RootHash> {
         self.inner
             .get_root_hash(version)
@@ -154,12 +166,20 @@ where
         self.inner.len()
     }
 
+    /// Returns true if there are no nodes with `OwnedValue`s for the latest
+    /// `Version` in `VersionedDatabase::value_history()`
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
+    /// Get the latest `Version` of the tree known to the database.
     pub fn version(&self) -> Version {
         self.inner.version()
+    }
+
+    /// Returns a clone of the value history from the database.
+    pub fn value_history(&self) -> HashMap<KeyHash, Vec<(Version, Option<OwnedValue>)>> {
+        self.inner.reader().value_history()
     }
 }
 

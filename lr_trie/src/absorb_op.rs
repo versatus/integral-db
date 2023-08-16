@@ -33,6 +33,14 @@ where
                 }
                 Err(err) => error!("Operation::Remove failed to remove value for key: {err}"),
             },
+            Operation::Extend(kvs, vers) => match self.put_value_set(kvs.to_vec(), *vers) {
+                Ok((_, batch)) => {
+                    if let Err(err) = self.reader().write_node_batch(&batch.node_batch) {
+                        error!("Operation::Extend failed to write changes to database: {err}")
+                    }
+                }
+                Err(err) => error!("Operation::Extend failed batch update: {err}"),
+            },
         }
     }
 

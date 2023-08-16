@@ -10,4 +10,6 @@ pub enum Operation {
     Add((KeyHash, Option<OwnedValue>), Version),
     /// Remove a value specified by the key and version from the trie
     Remove(KeyHash, Version),
+    /// Batch update at a specified version
+    Extend(Vec<(KeyHash, Option<OwnedValue>)>, Version),
 }

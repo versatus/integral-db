@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt::{self, Debug, Display, Formatter},
     marker::PhantomData,
     sync::Arc,
@@ -7,12 +8,15 @@ use std::{
 pub use left_right::ReadHandleFactory;
 use left_right::{ReadHandle, WriteHandle};
 use patriecia::{
-    JellyfishMerkleTree, KeyHash, RootHash, Sha256, SimpleHasher, SparseMerkleProof, TreeReader,
-    TreeWriter, Version, VersionedDatabase,
+    JellyfishMerkleTree, KeyHash, OwnedValue, RootHash, Sha256, SimpleHasher, SparseMerkleProof,
+    TreeReader, TreeWriter, Version, VersionedDatabase,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{JellyfishMerkleTreeWrapper, LeftRightTrieError, Operation, Result};
+
+/// The value history of the tree stored in the database.
+type ValueHistory = HashMap<KeyHash, Vec<(Version, Option<OwnedValue>)>>;
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
@@ -55,32 +59,41 @@ where
         }
     }
 
-    /// Returns a vector of all entries within the trie
-    pub fn entries(&self) -> Vec<(K, V)> {
-        todo!()
+    /// Returns a clone of the value history from the database.
+    ///
+    /// Replaces `entries()`.
+    pub fn value_history(&self) -> Result<ValueHistory> {
+        Ok(self.handle()?.value_history())
     }
 
+    /// Returns the number of `Some` values within `value_history`
+    /// for all keys at the latest version in the database.
     pub fn len(&self) -> Result<usize> {
         Ok(self.handle()?.len())
     }
 
+    /// Returns true if there are no nodes with `OwnedValue`s for the latest
+    /// `Version` in `VersionedDatabase::value_history()`
     pub fn is_empty(&self) -> Result<bool> {
         Ok(self.handle()?.is_empty())
     }
 
+    /// Get the `RootHash` of a `JellyfishMerkleTree` at a specified `Version`.
     pub fn root(&self, version: Version) -> Result<RootHash> {
         self.handle()?.root_hash(version)
     }
 
+    /// Get the latest `Version` of the tree known to the database.
     pub fn version(&self) -> Result<Version> {
         Ok(self.handle()?.version())
     }
 
-    /// Get the `RootHash` at the latest `LatestVersion`.
+    /// Get the `RootHash` at the latest `Version`.
     pub fn root_latest(&self) -> Result<RootHash> {
         self.root(self.version()?)
     }
 
+    /// Get a `SparseMerkleProof` at a specified `Version`.
     pub fn get_proof(&'a mut self, key: &K, version: Version) -> Result<SparseMerkleProof<H>>
     where
         K: Serialize + Deserialize<'a>,
@@ -90,6 +103,7 @@ where
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
+    /// Verify a `SparseMerkleProof` at a specified `Version`.
     pub fn verify_proof(
         &'a self,
         element_key: KeyHash,
@@ -105,18 +119,28 @@ where
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
+    /// Create a ReadHandleFactory which is Send & Sync and can be shared
+    /// across threads to create additional ReadHandle instances.
     pub fn factory(&'a self) -> ReadHandleFactory<JellyfishMerkleTree<D, H>> {
         self.read_handle.factory()
     }
 
+    /// Wrapper for `LeftRightTrie::insert`.
     pub fn update(&mut self, key: K, value: V, version: Version) {
         self.insert(key, value, version)
     }
 
+    /// Publish all operations append to the log to reads.
+    ///
+    /// This method needs to wait for all readers to move to the "other" copy of the data
+    /// so that it can replay the operational log onto the stale copy the readers used to use.
+    /// This can take some time, especially if readers are executing slow operations,
+    /// or if there are many of them.
     pub fn publish(&mut self) {
         self.write_handle.publish();
     }
 
+    /// Add and publish a key-value pair at a specified version.
     pub fn insert(&mut self, key: K, value: V, version: Version) {
         //TODO: revisit the serializer used to store things on the trie
         let keyhash = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
@@ -126,22 +150,27 @@ where
             .publish();
     }
 
-    // pub fn extend(&mut self, values: Vec<(K, V)>) {
-    //     let mapped = values
-    //         .into_iter()
-    //         .map(|(key, value)| {
-    //             //TODO: revisit the serializer used to store things on the trie
-    //             let key = bincode::serialize(&key).unwrap_or_default();
-    //             let value = bincode::serialize(&value).unwrap_or_default();
+    /// Add and publish a set of key-value pairs at a specified version.
+    pub fn extend(&mut self, values: Vec<(K, Option<V>)>, version: Version) {
+        let mapped = values
+            .into_iter()
+            .map(|(key, value)| {
+                //TODO: revisit the serializer used to store things on the trie
+                let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
+                let value = if let Some(val) = value {
+                    Some(bincode::serialize(&val).unwrap_or_default())
+                } else {
+                    None
+                };
 
-    //             (key, value)
-    //         })
-    //         .collect();
+                (key, value)
+            })
+            .collect();
 
-    //     self.write_handle
-    //         .append(Operation::Extend(mapped))
-    //         .publish();
-    // }
+        self.write_handle
+            .append(Operation::Extend(mapped, version))
+            .publish();
+    }
 }
 
 impl<'a, D, K, V, H> PartialEq for LeftRightTrie<'a, K, V, D, H>
