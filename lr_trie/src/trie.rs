@@ -18,7 +18,7 @@ use crate::{JellyfishMerkleTreeWrapper, LeftRightTrieError, Operation, Result};
 /// The value history of the tree stored in the database.
 type ValueHistory = HashMap<KeyHash, Vec<(Version, Option<OwnedValue>)>>;
 
-/// Concurrent generic Merkle Patricia Trie
+/// Concurrent generic JellyfishMerkleTree.
 #[derive(Debug)]
 pub struct LeftRightTrie<'a, K, V, D, H>
 where
