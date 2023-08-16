@@ -269,7 +269,6 @@ mod tests {
         assert_eq!(value, CustomValue { data: 100 });
     }
 
-    #[ignore = "currently does not compile due to lifetimes"]
     #[test]
     fn should_be_read_concurrently() {
         let db = Arc::new(MockTreeStore::new(true));
