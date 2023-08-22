@@ -1,0 +1,23 @@
+[package]
+name = "db_tables"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sha2 = { workspace = true }
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+lr_trie = { workspace = true }
+patriecia = { workspace = true }
+bincode = { workspace = true }
+rocksdb = { workspace = true }
+serde_json = { workspace = true }
+serial_test = { workspace = true }
+ethereum-types = { workspace = true }
+kademlia-dht = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }
