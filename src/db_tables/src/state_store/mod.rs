@@ -7,8 +7,9 @@ use crate::storage_utils::{
     result::{Result, StorageError},
 };
 use lr_trie::{LeftRightTrie, H256};
+use patriecia::SimpleHasher;
 
-use crate::RocksDbAdapter;
+use crate::rocksdb_adapter::RocksDbAdapter;
 
 mod state_store_rh;
 pub use state_store_rh::*;
@@ -17,11 +18,11 @@ pub type Accounts = Vec<Account>;
 pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
 #[derive(Debug, Clone)]
-pub struct StateStore {
-    trie: LeftRightTrie<'static, Address, Account, RocksDbAdapter>,
+pub struct StateStore<H: SimpleHasher> {
+    trie: LeftRightTrie<'static, Address, Account, RocksDbAdapter, H>,
 }
 
-impl Default for StateStore {
+impl<H: SimpleHasher> Default for StateStore<H> {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -36,7 +37,7 @@ impl Default for StateStore {
     }
 }
 
-impl StateStore {
+impl<H: SimpleHasher> StateStore<H> {
     /// Returns new, empty instance of StateDb
 
     pub fn new(path: &Path) -> Self {
@@ -49,7 +50,7 @@ impl StateStore {
 
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
-    pub fn read_handle(&self) -> StateStoreReadHandle {
+    pub fn read_handle(&self) -> StateStoreReadHandle<H> {
         let inner = self.trie.handle();
         StateStoreReadHandle::new(inner)
     }
@@ -135,7 +136,7 @@ impl StateStore {
 
     /// Retain returns new StateDb with which all Accounts that fulfill `filter`
     /// cloned to it.
-    pub fn retain<F>(&self, _filter: F) -> StateStore
+    pub fn retain<F>(&self, _filter: F) -> StateStore<H>
     where
         F: FnMut(&Account) -> bool,
     {
@@ -287,7 +288,7 @@ impl StateStore {
         self.trie.extend(accounts)
     }
 
-    pub fn factory(&self) -> StateStoreReadHandleFactory {
+    pub fn factory(&self) -> StateStoreReadHandleFactory<H> {
         let inner = self.trie.factory();
 
         StateStoreReadHandleFactory::new(inner)

@@ -7,8 +7,9 @@ use crate::storage_utils::{
 };
 use ethereum_types::U256;
 use lr_trie::{LeftRightTrie, H256};
+use patriecia::SimpleHasher;
 
-use crate::RocksDbAdapter;
+use crate::rocksdb_adapter::RocksDbAdapter;
 
 mod claim_store_rh;
 pub use claim_store_rh::*;
@@ -17,11 +18,11 @@ pub type Claims = Vec<Claim>;
 pub type FailedClaimUpdates = Vec<(U256, Claims, Result<()>)>;
 
 #[derive(Debug, Clone)]
-pub struct ClaimStore {
-    trie: LeftRightTrie<'static, U256, Claim, RocksDbAdapter>,
+pub struct ClaimStore<H: SimpleHasher> {
+    trie: LeftRightTrie<'static, U256, Claim, RocksDbAdapter, H>,
 }
 
-impl Default for ClaimStore {
+impl<H: SimpleHasher> Default for ClaimStore<H> {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -36,7 +37,7 @@ impl Default for ClaimStore {
     }
 }
 
-impl ClaimStore {
+impl<H: SimpleHasher> ClaimStore<H> {
     /// Returns new, empty instance of ClaimDb
     pub fn new(path: &Path) -> Self {
         let path = path.join("claims");
@@ -48,7 +49,7 @@ impl ClaimStore {
 
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
-    pub fn read_handle(&self) -> ClaimStoreReadHandle {
+    pub fn read_handle(&self) -> ClaimStoreReadHandle<H> {
         let inner = self.trie.handle();
         ClaimStoreReadHandle::new(inner)
     }
@@ -125,7 +126,7 @@ impl ClaimStore {
 
     /// Retain returns new ClaimDb with which all Claims that fulfill `filter`
     /// cloned to it.
-    pub fn retain<F>(&self, _filter: F) -> ClaimStore
+    pub fn retain<F>(&self, _filter: F) -> ClaimStore<H>
     where
         F: FnMut(&Claim) -> bool,
     {
@@ -280,7 +281,7 @@ impl ClaimStore {
         self.trie.extend(claims)
     }
 
-    pub fn factory(&self) -> ClaimStoreReadHandleFactory {
+    pub fn factory(&self) -> ClaimStoreReadHandleFactory<H> {
         let inner = self.trie.factory();
 
         ClaimStoreReadHandleFactory::new(inner)

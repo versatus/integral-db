@@ -4,17 +4,17 @@ use crate::core::claim::Claim;
 use crate::primitives::node::NodeId;
 use crate::storage_utils::result::{Result, StorageError};
 use lr_trie::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
-use patriecia::JellyfishMerkleTree;
+use patriecia::{JellyfishMerkleTree, SimpleHasher};
 
-use crate::RocksDbAdapter;
+use crate::rocksdb_adapter::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
-pub struct ClaimStoreReadHandle {
-    inner: JellyfishMerkleTreeWrapper<RocksDbAdapter>,
+pub struct ClaimStoreReadHandle<H: SimpleHasher> {
+    inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>,
 }
 
-impl ClaimStoreReadHandle {
-    pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter>) -> Self {
+impl<H: SimpleHasher> ClaimStoreReadHandle<H> {
+    pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>) -> Self {
         Self { inner }
     }
 
@@ -68,16 +68,16 @@ impl ClaimStoreReadHandle {
 }
 
 #[derive(Debug, Clone)]
-pub struct ClaimStoreReadHandleFactory {
-    inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter>>,
+pub struct ClaimStoreReadHandleFactory<H: SimpleHasher> {
+    inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, H>>,
 }
 
-impl ClaimStoreReadHandleFactory {
-    pub fn new(inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter>>) -> Self {
+impl<H: SimpleHasher> ClaimStoreReadHandleFactory<H> {
+    pub fn new(inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, H>>) -> Self {
         Self { inner }
     }
 
-    pub fn handle(&self) -> ClaimStoreReadHandle {
+    pub fn handle(&self) -> ClaimStoreReadHandle<H> {
         let handle = self
             .inner
             .handle()

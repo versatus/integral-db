@@ -18,6 +18,7 @@ serde_json = { workspace = true }
 serial_test = { workspace = true }
 ethereum-types = { workspace = true }
 kademlia-dht = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
