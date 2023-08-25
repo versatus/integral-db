@@ -49,6 +49,7 @@ where
         }
     }
 
+    // TODO: revist and discuss Default implementations of JellyfishMerkleTree
     pub fn handle(&self) -> Result<JellyfishMerkleTreeWrapper<D, H>> {
         if let Some(read_handle) = self.read_handle.enter().map(|guard| guard.clone()) {
             Ok(JellyfishMerkleTreeWrapper::new(read_handle))
@@ -221,38 +222,18 @@ where
     }
 }
 
-/// Substitue clone trait.
-/// Avoids creating temporary values which are freed while in use by
-/// providing the method with a valid clone of a `JellyfishMerkleTree`.
-///
-/// # Example:
-/// ```rust, ignore = "passes at lr_trie/src/trie.rs but fails at src/trie.rs doc test"
-/// use patriecia::{MockTreeStore, Sha256};
-/// use crate::integral_db::{LeftRightTrie, SubClone};
-/// use std::sync::Arc;
-///
-/// let db = Arc::new(MockTreeStore::default());
-/// let lr_trie = LeftRightTrie::<String, String, MockTreeStore, Sha256>::new(db);
-///
-/// let clone = LeftRightTrie::from_clone(lr_trie.handle().unwrap().inner());
-/// assert_eq!(lr_trie, clone);
-/// ```
-pub trait SubClone<'a, D, H>
-where
-    D: TreeReader + TreeWriter + VersionedDatabase,
-    H: SimpleHasher,
-{
-    fn from_clone(inner: JellyfishMerkleTree<D, H>) -> Self;
-}
-
-impl<'a, D, K, V, H> SubClone<'a, D, H> for LeftRightTrie<'a, K, V, D, H>
+impl<'a, D, K, V, H> Clone for LeftRightTrie<'a, K, V, D, H>
 where
     D: TreeReader + TreeWriter + VersionedDatabase,
     H: SimpleHasher,
     K: Serialize + Deserialize<'a>,
     V: Serialize + Deserialize<'a>,
 {
-    fn from_clone(inner: JellyfishMerkleTree<D, H>) -> Self {
+    fn clone(&self) -> Self {
+        let inner = self
+            .handle()
+            .expect("failed to retrieve handle from left right trie")
+            .inner();
         LeftRightTrie::from(inner)
     }
 }
