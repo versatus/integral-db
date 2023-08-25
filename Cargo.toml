@@ -38,10 +38,11 @@ serial_test = { workspace = true }
 sha2 = { workspace = true }
 lr_trie = { workspace = true }
 kademlia-dht = { workspace = true }
+anyhow = { workspace = true }
 
 [workspace.dependencies]
 left-right = "0.11.5"
-patriecia = { git = "https://github.com/versatus/patriecia" }
+patriecia = { path = "../patriecia" }
 serde = { version = "1.0.144", features = ["derive"] }
 keccak-hash = "0.9"
 parking_lot = "0.12"
@@ -66,6 +67,7 @@ serial_test = "0.9.0"
 sha2 = "0.10.6"
 lr_trie = { path = "./src/lr_trie" }
 kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
+anyhow = "1"
 
 [dev-dependencies]
 rand = { workspace = true }

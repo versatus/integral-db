@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-
 use crate::core::claim::Claim;
 use crate::primitives::node::NodeId;
+use crate::storage_utils;
 use crate::storage_utils::result::{Result, StorageError};
 use lr_trie::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
 use patriecia::{JellyfishMerkleTree, SimpleHasher};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::rocksdb_adapter::RocksDbAdapter;
 
@@ -83,7 +83,13 @@ impl<H: SimpleHasher> ClaimStoreReadHandleFactory<H> {
             .handle()
             .enter()
             .map(|guard| guard.clone())
-            .unwrap_or_default();
+            .unwrap_or({
+                let path = storage_utils::get_node_data_dir()
+                    .unwrap_or_default()
+                    .join("db")
+                    .join("claims");
+                JellyfishMerkleTree::new(Arc::new(RocksDbAdapter::new(path, "claims").unwrap()))
+            });
 
         let inner = JellyfishMerkleTreeWrapper::new(handle);
 

@@ -51,7 +51,7 @@ impl<H: SimpleHasher> TransactionStore<H> {
     }
 
     pub fn read_handle(&self) -> TransactionStoreReadHandle<H> {
-        let inner = self.trie.handle();
+        let inner = self.trie.handle().unwrap();
         TransactionStoreReadHandle::new(inner)
     }
 

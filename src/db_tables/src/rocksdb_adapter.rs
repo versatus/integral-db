@@ -6,8 +6,12 @@ use crate::storage_utils::{
     get_node_data_dir,
     result::{Result as StorageResult, StorageError},
 };
-use patriecia::{TreeReader, TreeWriter, VersionedDatabase};
+use anyhow::Result;
+use patriecia::{
+    LeafNode, Node, NodeBatch, NodeKey, TreeReader, TreeUpdateBatch, TreeWriter, VersionedDatabase,
+};
 use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME};
+use std::collections::HashMap;
 use tracing::error;
 
 #[derive(Debug)]
@@ -129,6 +133,48 @@ impl Default for RocksDbAdapter {
     }
 }
 
-impl VersionedDatabase for RocksDbAdapter {}
-impl TreeReader for RocksDbAdapter {}
-impl TreeWriter for RocksDbAdapter {}
+impl VersionedDatabase for RocksDbAdapter {
+    fn get(
+        &self,
+        max_version: patriecia::Version,
+        node_key: patriecia::KeyHash,
+    ) -> Result<Option<patriecia::OwnedValue>> {
+        todo!()
+    }
+
+    fn update_batch(&self, tree_update_batch: TreeUpdateBatch) -> Result<()> {
+        todo!()
+    }
+
+    fn nodes(&self) -> HashMap<NodeKey, Node> {
+        todo!()
+    }
+
+    fn value_history(
+        &self,
+    ) -> HashMap<patriecia::KeyHash, Vec<(patriecia::Version, Option<patriecia::OwnedValue>)>> {
+        todo!()
+    }
+}
+impl TreeReader for RocksDbAdapter {
+    fn get_node_option(&self, node_key: &NodeKey) -> Result<Option<Node>> {
+        todo!()
+    }
+
+    fn get_value_option(
+        &self,
+        max_version: patriecia::Version,
+        key_hash: patriecia::KeyHash,
+    ) -> Result<Option<patriecia::OwnedValue>> {
+        todo!()
+    }
+
+    fn get_rightmost_leaf(&self) -> Result<Option<(NodeKey, LeafNode)>> {
+        todo!()
+    }
+}
+impl TreeWriter for RocksDbAdapter {
+    fn write_node_batch(&self, node_batch: &NodeBatch) -> Result<()> {
+        todo!()
+    }
+}

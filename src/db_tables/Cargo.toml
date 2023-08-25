@@ -19,6 +19,7 @@ serial_test = { workspace = true }
 ethereum-types = { workspace = true }
 kademlia-dht = { workspace = true }
 tracing = { workspace = true }
+anyhow = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

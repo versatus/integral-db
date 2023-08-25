@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::core::txn::{TransactionDigest, Txn};
 use crate::storage_utils::result::{Result, StorageError};
 use lr_trie::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
-use patriecia::{JellyfishMerkleTree, SimpleHasher};
+use patriecia::{JellyfishMerkleTree, KeyHash, SimpleHasher, Version};
 
 use crate::rocksdb_adapter::RocksDbAdapter;
 
@@ -17,37 +17,44 @@ impl<H: SimpleHasher> TransactionStoreReadHandle<H> {
         Self { inner }
     }
 
-    pub fn get(&self, key: &TransactionDigest) -> Result<Txn> {
+    pub fn get(&self, key: &TransactionDigest, version: Version) -> Result<Txn> {
         self.inner
-            .get(key)
+            .get(key, version)
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 
     pub fn batch_get(
         &self,
         keys: Vec<TransactionDigest>,
+        version: Version,
     ) -> HashMap<TransactionDigest, Option<Txn>> {
         let mut transactions = HashMap::new();
 
         keys.iter().for_each(|key| {
-            let value = self.get(key).ok();
+            let value = self.get(key, version).ok();
             transactions.insert(key.to_owned(), value);
         });
 
         transactions
     }
 
-    pub fn entries(&self) -> HashMap<TransactionDigest, Txn> {
+    pub fn entries(
+        &self,
+        version: Version,
+        starting_key: KeyHash,
+    ) -> Result<HashMap<TransactionDigest, Txn>> {
         // TODO: revisit and refactor into inner wrapper
-        self.inner
-            .iter()
-            .map(|(key, value)| {
-                let key = bincode::deserialize(&key).unwrap_or_default();
+        Ok(self
+            .inner
+            .iter(version, starting_key)
+            .map_err(|e| StorageError::Other(e.to_string()))?
+            .map(|Ok((key, value))| {
+                let key = bincode::deserialize(&key.0).unwrap_or_default();
                 let value = bincode::deserialize(&value).unwrap_or_default();
 
                 (key, value)
             })
-            .collect()
+            .collect())
     }
 
     /// Returns a number of transactions in the ledger

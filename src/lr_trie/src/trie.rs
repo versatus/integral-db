@@ -257,6 +257,19 @@ where
     }
 }
 
+impl<'a, D, K, V, H> Clone for LeftRightTrie<'a, K, V, D, H>
+where
+    D: TreeReader + TreeWriter + VersionedDatabase,
+    H: SimpleHasher,
+    K: Serialize + Deserialize<'a>,
+    V: Serialize + Deserialize<'a>,
+{
+    fn clone(&self) -> Self {
+        let inner = self.handle().unwrap().inner();
+        LeftRightTrie::from(inner)
+    }
+}
+
 impl<'a, D, K, V, H> Display for LeftRightTrie<'a, K, V, D, H>
 where
     D: TreeReader + TreeWriter + VersionedDatabase,

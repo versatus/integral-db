@@ -34,6 +34,12 @@ pub struct Txn {
     pub nonce: TxNonce,
 }
 
+impl Default for Txn {
+    fn default() -> Self {
+        Txn::null_txn()
+    }
+}
+
 impl Txn {
     pub fn timestamp(&self) -> TxTimestamp {
         self.timestamp
@@ -73,6 +79,53 @@ impl Txn {
             self.amount(),
             self.nonce(),
         )
+    }
+
+    pub fn null_txn() -> Txn {
+        let timestamp = chrono::Utc::now().timestamp();
+        let kp = Keypair::random();
+        let public_key = kp.miner_kp.1;
+        let address = Address::new(public_key);
+
+        let digest_vec = generate_txn_digest_vec(
+            timestamp,
+            address.to_string(),
+            public_key,
+            address.to_string(),
+            Token::default(),
+            0,
+            0,
+        );
+
+        let digest = TransactionDigest::from(digest_vec);
+
+        let payload = utils::hash_data!(
+            timestamp.to_string(),
+            address.to_string(),
+            public_key.to_string(),
+            address.to_string(),
+            Token::default().to_string(),
+            0.to_string(),
+            0.to_string()
+        );
+
+        type H = secp256k1::hashes::sha256::Hash;
+        let msg = Message::from_hashed_data::<H>(&payload[..]);
+        let signature = kp.miner_kp.0.sign_ecdsa(msg);
+
+        Self {
+            id: digest,
+            // TODO: change time unit from seconds to millis
+            timestamp,
+            sender_address: address.clone(),
+            sender_public_key: kp.miner_kp.1,
+            receiver_address: address,
+            token: Token::default(),
+            amount: 0,
+            signature,
+            validators: None,
+            nonce: 0,
+        }
     }
 }
 
