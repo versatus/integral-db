@@ -13,7 +13,7 @@ pub struct StateStoreReadHandle<H: SimpleHasher> {
     inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>,
 }
 
-impl<H> StateStoreReadHandle<H> {
+impl<H: SimpleHasher> StateStoreReadHandle<H> {
     pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>) -> Self {
         Self { inner }
     }

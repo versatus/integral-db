@@ -6,7 +6,7 @@ use crate::storage_utils::{
     get_node_data_dir,
     result::{Result as StorageResult, StorageError},
 };
-use patriecia::db::Database;
+use patriecia::{TreeReader, TreeWriter, VersionedDatabase};
 use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME};
 use tracing::error;
 
@@ -129,55 +129,6 @@ impl Default for RocksDbAdapter {
     }
 }
 
-impl Database for RocksDbAdapter {
-    type Error = StorageError;
-
-    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Self::Error> {
-        self.db
-            .get(key)
-            .map_err(|err| Self::Error::Other(err.to_string()))
-    }
-
-    fn insert(&self, key: &[u8], value: Vec<u8>) -> Result<(), Self::Error> {
-        self.db
-            .put(key, value)
-            .map_err(|err| Self::Error::Other(err.to_string()))
-    }
-
-    fn remove(&self, key: &[u8]) -> Result<(), Self::Error> {
-        self.db
-            .delete(key)
-            .map_err(|err| Self::Error::Other(err.to_string()))
-    }
-
-    fn flush(&self) -> Result<(), Self::Error> {
-        self.db
-            .flush()
-            .map_err(|err| Self::Error::Other(err.to_string()))
-    }
-
-    fn len(&self) -> Result<usize, Self::Error> {
-        Ok(self.db.iterator(rocksdb::IteratorMode::Start).count())
-    }
-
-    fn is_empty(&self) -> Result<bool, Self::Error> {
-        let count = self.len().unwrap_or(0);
-
-        Ok(count == 0)
-    }
-
-    /// NOTE: broken, do not use yet
-    fn values(&self) -> Result<Vec<(Vec<u8>, Vec<u8>)>, Self::Error> {
-        let values = self
-            .db
-            .iterator(rocksdb::IteratorMode::Start)
-            .filter_map(|res| match res {
-                Ok((k, v)) => Some((k.into(), v.into())),
-
-                _ => None,
-            })
-            .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
-
-        Ok(values)
-    }
-}
+impl VersionedDatabase for RocksDbAdapter {}
+impl TreeReader for RocksDbAdapter {}
+impl TreeWriter for RocksDbAdapter {}

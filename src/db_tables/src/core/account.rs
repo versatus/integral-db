@@ -37,7 +37,7 @@ pub struct Account {
 /// throughout the history of a given account, separated by whether
 /// the txn was sent from the account, received by the account, or
 /// was a staking transaction.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default)]
 pub struct AccountDigests {
     sent: HashSet<TransactionDigest>,
     recv: HashSet<TransactionDigest>,
