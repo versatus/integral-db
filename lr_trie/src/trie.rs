@@ -317,5 +317,33 @@ mod tests {
             .for_each(|handle| {
                 handle.join().unwrap();
             });
+
+        for n in 50..68 {
+            let key = format!("test-{n}");
+
+            trie.insert(key, CustomValue { data: 12345 }, n);
+        }
+
+        trie.publish();
+
+        // NOTE Spawn 10 threads and 10 readers that should report the exact same value
+        [0..10]
+            .iter()
+            .map(|_| {
+                let reader = trie.handle().unwrap();
+                thread::spawn(move || {
+                    assert_eq!(reader.len() as u64, 36);
+                    for n in 50..68 {
+                        let key = format!("test-{n}");
+
+                        let res: CustomValue = reader.get(&key, n).unwrap();
+
+                        assert_eq!(res, CustomValue { data: 12345 });
+                    }
+                })
+            })
+            .for_each(|handle| {
+                handle.join().unwrap();
+            });
     }
 }
