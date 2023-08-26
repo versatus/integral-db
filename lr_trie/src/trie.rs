@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fmt::{self, Debug, Display, Formatter},
     marker::PhantomData,
     sync::Arc,
@@ -8,15 +7,12 @@ use std::{
 pub use left_right::ReadHandleFactory;
 use left_right::{ReadHandle, WriteHandle};
 use patriecia::{
-    JellyfishMerkleTree, KeyHash, OwnedValue, RootHash, Sha256, SimpleHasher, SparseMerkleProof,
-    TreeReader, TreeWriter, Version, VersionedDatabase,
+    JellyfishMerkleTree, KeyHash, RootHash, Sha256, SimpleHasher, SparseMerkleProof, TreeReader,
+    TreeWriter, Version, VersionedDatabase,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{JellyfishMerkleTreeWrapper, LeftRightTrieError, Operation, Result};
-
-/// The value history of the tree stored in the database.
-type ValueHistory = HashMap<KeyHash, Vec<(Version, Option<OwnedValue>)>>;
 
 /// Concurrent generic JellyfishMerkleTree.
 #[derive(Debug)]
@@ -62,8 +58,8 @@ where
     /// Returns a clone of the value history from the database.
     ///
     /// Replaces `entries()`.
-    pub fn value_history(&self) -> Result<ValueHistory> {
-        Ok(self.handle().value_history())
+    pub fn value_history(&self) -> <D as VersionedDatabase>::HistoryIter {
+        self.handle().value_history()
     }
 
     /// Returns the number of `Some` values within `value_history`

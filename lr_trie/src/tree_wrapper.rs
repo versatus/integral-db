@@ -1,13 +1,9 @@
-use std::{
-    collections::HashMap,
-    fmt::{self, Debug, Display, Formatter},
-};
+use std::fmt::{self, Debug, Display, Formatter};
 
 pub use left_right::ReadHandleFactory;
 use patriecia::{
-    JellyfishMerkleIterator, JellyfishMerkleTree, KeyHash, OwnedValue, RootHash, Sha256,
-    SimpleHasher, SparseMerkleProof, TreeReader, TreeWriter, Version, VersionedDatabase,
-    VersionedTrie,
+    JellyfishMerkleIterator, JellyfishMerkleTree, KeyHash, RootHash, Sha256, SimpleHasher,
+    SparseMerkleProof, TreeReader, TreeWriter, Version, VersionedDatabase, VersionedTrie,
 };
 use serde::{Deserialize, Serialize};
 
@@ -178,7 +174,7 @@ where
     }
 
     /// Returns a clone of the value history from the database.
-    pub fn value_history(&self) -> HashMap<KeyHash, Vec<(Version, Option<OwnedValue>)>> {
+    pub fn value_history(&self) -> <D as VersionedDatabase>::HistoryIter {
         self.inner.reader().value_history()
     }
 }
