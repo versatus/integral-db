@@ -50,43 +50,42 @@ where
     }
 
     // TODO: revist and discuss Default implementations of JellyfishMerkleTree
-    pub fn handle(&self) -> Result<JellyfishMerkleTreeWrapper<D, H>> {
-        if let Some(read_handle) = self.read_handle.enter().map(|guard| guard.clone()) {
-            Ok(JellyfishMerkleTreeWrapper::new(read_handle))
-        } else {
-            Err(LeftRightTrieError::Other(
-                "failed to retrieve read handle".to_string(),
-            ))
-        }
+    pub fn handle(&self) -> JellyfishMerkleTreeWrapper<D, H> {
+        JellyfishMerkleTreeWrapper::new(
+            self.read_handle
+                .enter()
+                .map(|guard| guard.clone())
+                .unwrap_or_default(),
+        )
     }
 
     /// Returns a clone of the value history from the database.
     ///
     /// Replaces `entries()`.
     pub fn value_history(&self) -> Result<ValueHistory> {
-        Ok(self.handle()?.value_history())
+        Ok(self.handle().value_history())
     }
 
     /// Returns the number of `Some` values within `value_history`
     /// for all keys at the latest version in the database.
     pub fn len(&self) -> Result<usize> {
-        Ok(self.handle()?.len())
+        Ok(self.handle().len())
     }
 
     /// Returns true if there are no nodes with `OwnedValue`s for the latest
     /// `Version` in `VersionedDatabase::value_history()`
     pub fn is_empty(&self) -> Result<bool> {
-        Ok(self.handle()?.is_empty())
+        Ok(self.handle().is_empty())
     }
 
     /// Get the `RootHash` of a `JellyfishMerkleTree` at a specified `Version`.
     pub fn root(&self, version: Version) -> Result<RootHash> {
-        self.handle()?.root_hash(version)
+        self.handle().root_hash(version)
     }
 
     /// Get the latest `Version` of the tree known to the database.
     pub fn version(&self) -> Result<Version> {
-        Ok(self.handle()?.version())
+        Ok(self.handle().version())
     }
 
     /// Get the `RootHash` at the latest `Version`.
@@ -99,7 +98,7 @@ where
     where
         K: Serialize + Deserialize<'a>,
     {
-        self.handle()?
+        self.handle()
             .get_proof::<K>(key, version)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
@@ -115,7 +114,7 @@ where
     where
         K: Serialize + Deserialize<'a>,
     {
-        self.handle()?
+        self.handle()
             .verify_proof::<K>(element_key, version, expected_root_hash, proof)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
@@ -230,10 +229,7 @@ where
     V: Serialize + Deserialize<'a>,
 {
     fn clone(&self) -> Self {
-        let inner = self
-            .handle()
-            .expect("failed to retrieve handle from left right trie")
-            .inner();
+        let inner = self.handle().inner();
         LeftRightTrie::from(inner)
     }
 }
@@ -246,12 +242,7 @@ where
     V: Serialize + Deserialize<'a>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.handle()
-                .expect("failed to retrieve handle for formatter")
-        )
+        write!(f, "{}", self.handle())
     }
 }
 
@@ -274,11 +265,7 @@ mod tests {
 
         trie.insert("abcdefg", CustomValue { data: 100 }, 0);
 
-        let value: CustomValue = trie
-            .handle()
-            .unwrap()
-            .get(&String::from("abcdefg"), 0)
-            .unwrap();
+        let value: CustomValue = trie.handle().get(&String::from("abcdefg"), 0).unwrap();
 
         assert_eq!(value, CustomValue { data: 100 });
     }
@@ -302,7 +289,7 @@ mod tests {
         [0..10]
             .iter()
             .map(|_| {
-                let reader = trie.handle().unwrap();
+                let reader = trie.handle();
                 thread::spawn(move || {
                     assert_eq!(reader.len() as u64, total);
                     for n in 0..total {
