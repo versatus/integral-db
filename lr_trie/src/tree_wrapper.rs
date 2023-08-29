@@ -70,7 +70,7 @@ where
 
     /// Insert a key-value pair into the tree at a specified `Version` and update the database
     /// from the node batch produced.
-    pub fn insert<'b, K, V>(&mut self, key: K, value: V, version: Version) -> Result<()>
+    pub fn insert<'b, K, V>(&mut self, key: K, value: V) -> Result<()>
     where
         K: Serialize + Deserialize<'b>,
         V: Serialize + Deserialize<'b>,
@@ -78,7 +78,10 @@ where
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         let value = bincode::serialize(&value).unwrap_or_default();
 
-        match self.inner.put_value_set(vec![(key, Some(value))], version) {
+        match self
+            .inner
+            .put_value_set(vec![(key, Some(value))], self.version() + 1)
+        {
             Ok((_, batch)) => self
                 .inner
                 .reader()
@@ -92,11 +95,12 @@ where
     /// from the node batch produced.
     ///
     /// Returns true if the value for key at version is no longer contained within the tree.
-    pub fn remove<'b, K>(&mut self, key: K, version: Version) -> Result<bool>
+    pub fn remove<'b, K>(&mut self, key: K) -> Result<bool>
     where
         K: Serialize + Deserialize<'b>,
     {
         let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
+        let version = self.version() + 1;
         match self.inner.put_value_set(vec![(key, None)], version) {
             Ok((_, batch)) => self
                 .inner
@@ -205,17 +209,20 @@ mod tests {
 
         let key = "Ada Lovelace";
         let value = "Analytical Engine";
-        let mut version = 0;
+        let mut version = 1;
 
-        wrapper.insert(key, value, version).unwrap();
+        wrapper.insert(key, value).unwrap();
         let contains_key = wrapper.contains(&key, version).unwrap();
         assert!(contains_key);
 
         version += 1; // update version when adding or removing
-        wrapper.remove(key, version).unwrap();
+        wrapper.remove(key).unwrap();
         let contains_key = wrapper.contains(&key, version).unwrap();
         assert!(!contains_key);
 
-        assert_eq!(wrapper.version(), 1);
+        assert_eq!(
+            wrapper.version(),
+            2 /* there are two total transactions */
+        );
     }
 }

@@ -122,8 +122,8 @@ where
     }
 
     /// Wrapper for `LeftRightTrie::insert`.
-    pub fn update(&mut self, key: K, value: V, version: Version) {
-        self.insert(key, value, version)
+    pub fn update(&mut self, key: K, value: V) {
+        self.insert(key, value)
     }
 
     /// Publish all operations append to the log to reads.
@@ -137,17 +137,21 @@ where
     }
 
     /// Add and publish a key-value pair at a specified version.
-    pub fn insert(&mut self, key: K, value: V, version: Version) {
+    pub fn insert(&mut self, key: K, value: V) {
         //TODO: revisit the serializer used to store things on the trie
         let keyhash = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
         let owned_value = bincode::serialize(&value).unwrap_or_default();
         self.write_handle
-            .append(Operation::Add((keyhash, Some(owned_value)), version))
+            .append(Operation::Add(
+                (keyhash, Some(owned_value)),
+                self.version()
+                    .expect("could not retrieve version from trie"),
+            ))
             .publish();
     }
 
     /// Add and publish a set of key-value pairs at a specified version.
-    pub fn extend(&mut self, values: Vec<(K, Option<V>)>, version: Version) {
+    pub fn extend(&mut self, values: Vec<(K, Option<V>)>) {
         let mapped = values
             .into_iter()
             .map(|(key, value)| {
@@ -164,7 +168,11 @@ where
             .collect();
 
         self.write_handle
-            .append(Operation::Extend(mapped, version))
+            .append(Operation::Extend(
+                mapped,
+                self.version()
+                    .expect("could not retrieve version from trie"),
+            ))
             .publish();
     }
 }
@@ -244,7 +252,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use patriecia::MockTreeStore;
+    use patriecia::{MockTreeStore, VersionedTrie};
     use std::thread;
 
     use super::*;
@@ -259,9 +267,9 @@ mod tests {
         let db = Arc::new(MockTreeStore::new(true));
         let mut trie = LeftRightTrie::<_, _, _, Sha256>::new(db);
 
-        trie.insert("abcdefg", CustomValue { data: 100 }, 0);
+        trie.insert("abcdefg", CustomValue { data: 100 });
 
-        let value: CustomValue = trie.handle().get(&String::from("abcdefg"), 0).unwrap();
+        let value: CustomValue = trie.handle().get(&String::from("abcdefg"), 1).unwrap();
 
         assert_eq!(value, CustomValue { data: 100 });
     }
@@ -270,13 +278,15 @@ mod tests {
     fn should_be_read_concurrently() {
         let db = Arc::new(MockTreeStore::new(true));
         let mut trie = LeftRightTrie::<_, _, _, Sha256>::new(db);
+        // an empty initialized tree will have version 0, the first time a change is made it will be version 1
+        assert_eq!(trie.read_handle.enter().unwrap().clone().version(), 0);
 
         let total = 18;
 
         for n in 0..total {
             let key = format!("test-{n}");
 
-            trie.insert(key, CustomValue { data: 12345 }, n);
+            trie.insert(key, CustomValue { data: 12345 });
         }
 
         trie.publish();
@@ -291,7 +301,12 @@ mod tests {
                     for n in 0..total {
                         let key = format!("test-{n}");
 
-                        let res: CustomValue = reader.get(&key, n).unwrap();
+                        let res: CustomValue = reader
+                            .get(&key, n + 1)
+                            .map_err(|e| {
+                                LeftRightTrieError::Other(format!("key: {key}\nver: {n}\n{e}"))
+                            })
+                            .unwrap();
 
                         assert_eq!(res, CustomValue { data: 12345 });
                     }

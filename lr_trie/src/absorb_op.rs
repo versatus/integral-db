@@ -16,7 +16,7 @@ where
         match operation {
             // TODO: report errors via instrumentation
             Operation::Add(key_val, vers) => {
-                match self.put_value_set(vec![key_val.to_owned()], *vers) {
+                match self.put_value_set(vec![key_val.to_owned()], *vers + 1) {
                     Ok((_, batch)) => {
                         if let Err(err) = self.reader().write_node_batch(&batch.node_batch) {
                             error!("Operation::Add failed to write changes to database: {err}")
@@ -25,7 +25,8 @@ where
                     Err(err) => error!("Operation::Add failed to insert key: {err}"),
                 }
             }
-            Operation::Remove(key, vers) => match self.put_value_set(vec![(*key, None)], *vers) {
+            Operation::Remove(key, vers) => match self.put_value_set(vec![(*key, None)], *vers + 1)
+            {
                 Ok((_, batch)) => {
                     if let Err(err) = self.reader().write_node_batch(&batch.node_batch) {
                         error!("Operation::Remove failed to write changes to database: {err}")
@@ -33,7 +34,7 @@ where
                 }
                 Err(err) => error!("Operation::Remove failed to remove value for key: {err}"),
             },
-            Operation::Extend(kvs, vers) => match self.put_value_set(kvs.to_vec(), *vers) {
+            Operation::Extend(kvs, vers) => match self.put_value_set(kvs.to_vec(), *vers + 1) {
                 Ok((_, batch)) => {
                     if let Err(err) = self.reader().write_node_batch(&batch.node_batch) {
                         error!("Operation::Extend failed to write changes to database: {err}")
