@@ -209,15 +209,13 @@ mod tests {
 
         let key = "Ada Lovelace";
         let value = "Analytical Engine";
-        let mut version = 1;
 
         wrapper.insert(key, value).unwrap();
-        let contains_key = wrapper.contains(&key, version).unwrap();
+        let contains_key = wrapper.contains(&key, 1).unwrap();
         assert!(contains_key);
 
-        version += 1; // update version when adding or removing
         wrapper.remove(key).unwrap();
-        let contains_key = wrapper.contains(&key, version).unwrap();
+        let contains_key = wrapper.contains(&key, 2).unwrap();
         assert!(!contains_key);
 
         assert_eq!(
