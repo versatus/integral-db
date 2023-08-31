@@ -6,6 +6,7 @@ use patriecia::{
 };
 use tracing::error;
 
+/// The number by which the [`Version`] of a [`JellyfishMerkleTree`] is incremented.
 const INCREMENT_ARG: u64 = 1;
 
 impl<D, H> Absorb<Operation> for JellyfishMerkleTree<D, H>
