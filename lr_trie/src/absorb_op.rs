@@ -17,9 +17,9 @@ where
     fn absorb_first(&mut self, operation: &mut Operation, _other: &Self) {
         // TODO: the unwrap_or_default avoids panic but is not logically sound and should
         // not be used in production since `Version` is monotonically increasing and could
-        // eventually overflow. Instead, we should consider another solution. Possibly by
-        // creating a recursive tree where the version overflow results in the first version
-        // of a new tree, we can avoid this scenario. cc @nopestack
+        // eventually overflow.
+        //
+        // cc @nopestack
         let increment_version =
             |vers: &mut u64| vers.checked_add(INCREMENT_ARG).unwrap_or_default();
         match operation {
