@@ -144,8 +144,7 @@ where
         self.write_handle
             .append(Operation::Add(
                 (keyhash, Some(owned_value)),
-                self.version()
-                    .expect("could not retrieve version from trie"),
+                self.version().unwrap_or_default(),
             ))
             .publish();
     }
@@ -170,8 +169,7 @@ where
         self.write_handle
             .append(Operation::Extend(
                 mapped,
-                self.version()
-                    .expect("could not retrieve version from trie"),
+                self.version().unwrap_or_default(),
             ))
             .publish();
     }
