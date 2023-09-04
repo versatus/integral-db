@@ -283,7 +283,6 @@ mod tests {
 
         for n in 0..total {
             let key = format!("test-{n}");
-            println!("{key}");
 
             trie.insert(key, CustomValue { data: 12345 });
         }
@@ -314,10 +313,10 @@ mod tests {
             .for_each(|handle| {
                 handle.join().unwrap();
             });
+
         assert_eq!(trie.version(), Ok(18));
         assert_eq!(trie.value_history().len(), 18);
         let mut iter = trie.handle().iter(trie.version().unwrap()).unwrap();
-        // println!("{iter:?}");
         let mut count = 0;
         while iter.next().is_some() {
             count += 1;
