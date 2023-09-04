@@ -250,7 +250,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use patriecia::{MockTreeStore, VersionedTrie};
+    use patriecia::{JellyfishMerkleIterator, MockTreeStore, VersionedTrie};
     use std::thread;
 
     use super::*;
@@ -283,6 +283,7 @@ mod tests {
 
         for n in 0..total {
             let key = format!("test-{n}");
+            println!("{key}");
 
             trie.insert(key, CustomValue { data: 12345 });
         }
@@ -300,7 +301,7 @@ mod tests {
                         let key = format!("test-{n}");
 
                         let res: CustomValue = reader
-                            .get(&key, n + 1)
+                            .get(&key, 18)
                             .map_err(|e| {
                                 LeftRightTrieError::Other(format!("key: {key}\nver: {n}\n{e}"))
                             })
@@ -313,5 +314,14 @@ mod tests {
             .for_each(|handle| {
                 handle.join().unwrap();
             });
+        assert_eq!(trie.version(), Ok(18));
+        assert_eq!(trie.value_history().len(), 18);
+        let mut iter = trie.handle().iter(trie.version().unwrap()).unwrap();
+        // println!("{iter:?}");
+        let mut count = 0;
+        while iter.next().is_some() {
+            count += 1;
+        }
+        assert_eq!(count, 18);
     }
 }
