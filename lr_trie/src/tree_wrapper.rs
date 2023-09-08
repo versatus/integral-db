@@ -151,13 +151,9 @@ where
 
     /// Create a [`JellyfishMerkleIterator`] from the reader: R, to iterate
     /// over values in the tree starting at the given key and version.
-    pub fn iter(
-        &self,
-        version: Version,
-        starting_key: KeyHash,
-    ) -> Result<JellyfishMerkleIterator<D>> {
+    pub fn iter(&self, version: Version) -> Result<JellyfishMerkleIterator<D>> {
         self.inner
-            .iter(version, starting_key)
+            .iter(version)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
