@@ -15,6 +15,7 @@ rlp = { workspace = true }
 thiserror = { workspace = true }
 bincode = { workspace = true }
 tracing = { workspace = true }
+db_adapter = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
