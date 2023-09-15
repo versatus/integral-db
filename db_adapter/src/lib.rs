@@ -50,6 +50,8 @@ pub struct DbAdapter<D: DiskIter> {
 #[derive(Debug, Default, Clone)]
 pub struct DbInner<D: DiskIter> {
     db: D,
+    // TODO: Determine if these fields can
+    // be managed within the backing db
     stale_nodes: BTreeSet<StaleNodeIndex>,
     value_history: HashMap<KeyHash, Vec<(Vers, Option<OwnedValue>)>>,
     preimages: HashMap<KeyHash, Preimage>,

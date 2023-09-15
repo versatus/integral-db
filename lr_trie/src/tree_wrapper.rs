@@ -190,7 +190,6 @@ where
 }
 
 #[cfg(test)]
-#[cfg(any(test, feature = "mocks"))]
 mod tests {
     use std::sync::Arc;
 

@@ -249,9 +249,8 @@ where
 }
 
 #[cfg(test)]
-#[cfg(any(test, features = "mocks"))]
 mod tests {
-    use patriecia::{JellyfishMerkleIterator, MockTreeStore, VersionedTrie};
+    use patriecia::{MockTreeStore, VersionedTrie};
     use std::thread;
 
     use super::*;
