@@ -12,7 +12,8 @@ use patriecia::{
     TreeWriter, Vers, VersionedDatabase,
 };
 use std::{
-    collections::{hash_map::IntoIter, BTreeSet, HashMap},
+    collections::{hash_map::IntoIter, BTreeMap, BTreeSet, HashMap},
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -20,7 +21,25 @@ use std::{
 //
 // Note: This may actually prove useful for more than testing since we will want
 //       similar functionality to RocksDB without the overhead cost of a full instance.
-type PebbleDB = indexmap::IndexMap<Vec<u8>, Vec<u8>>;
+//
+// TODO: determine method for column family implementation
+#[derive(Clone, Default, Debug)]
+pub struct PebbleDB {
+    inner: indexmap::IndexMap<Vec<u8>, Vec<u8>>,
+    // cfs: BTreeMap<String, ColumnFamily>,
+    path: PathBuf,
+}
+impl PebbleDB {
+    pub fn inner(&self) -> &indexmap::IndexMap<Vec<u8>, Vec<u8>> {
+        &self.inner
+    }
+    // pub fn cfs(&self) -> &BTreeMap<String, ColumnFamily> {
+    //     &self.cfs
+    // }
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+}
 
 /// Intermediate trait for getting an iterator over the entire storage generically.
 ///
@@ -35,7 +54,7 @@ pub trait DiskIter: Send + Sync + std::fmt::Debug + Default + Clone {
 impl DiskIter for PebbleDB {
     type DiskIterator = indexmap::map::IntoIter<Vec<u8>, Vec<u8>>;
     fn iter(&self) -> Self::DiskIterator {
-        self.clone().into_iter()
+        self.inner.clone().into_iter()
     }
 }
 
@@ -92,5 +111,30 @@ impl<D: DiskIter> VersionedDatabase for DbAdapter<D> {
         Vec<(Self::Version, Option<patriecia::OwnedValue>)>,
     > {
         self.data.read().value_history.clone().into_iter()
+    }
+}
+
+impl<D: DiskIter> TreeReader for DbAdapter<D> {
+    type Version = Vers;
+
+    fn get_node_option(&self, node_key: &NodeKey) -> Result<Option<Node>> {
+        todo!()
+    }
+
+    fn get_value_option(
+        &self,
+        max_version: Self::Version,
+        key_hash: KeyHash,
+    ) -> Result<Option<OwnedValue>> {
+        todo!()
+    }
+
+    fn get_rightmost_leaf(&self) -> Result<Option<(NodeKey, patriecia::LeafNode)>> {
+        todo!()
+    }
+}
+impl<D: DiskIter> TreeWriter for DbAdapter<D> {
+    fn write_node_batch(&self, node_batch: &patriecia::NodeBatch) -> Result<()> {
+        todo!()
     }
 }
