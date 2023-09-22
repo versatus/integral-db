@@ -172,6 +172,16 @@ impl PebbleDB {
         println!("failed to create new column family from: {cf:?}\ncolumn family already exists");
         Ok(())
     }
+    /// Inserts key value pairs into the storage map. This also updates the column family map.
+    ///
+    /// The keys of the storage map are appended to the hash of the column family, allowing for
+    /// a single point of storage for multiple namespaces. This is also a point of sanity, to allow
+    /// for verification that prefixed keyhashes are present, or not present.
+    ///
+    /// If a key is present in the storage map, it's value is updated in place otherwise appended to the map.
+    ///
+    /// If a column family exists, the prefixed key is appended to the column family map's associated prefixed keys.
+    /// Otherwise it is inserted as a new entry.
     pub fn insert<K, V>(&mut self, kv: (K, V), cf: &ColumnFamily) -> Result<()>
     where
         K: Serialize,
@@ -194,7 +204,10 @@ impl PebbleDB {
 
         Ok(())
     }
-    /// Return the length of a column family's prefixed keys if the column family exists
+    /// Return the length of a column family's prefixed keys if the column family exists.
+    ///
+    /// Note: If added all together, the number of values in the column family keys
+    ///       should equal the number of keys in the the storage map.
     pub fn cf_len(&self, cf: &ColumnFamily) -> Option<usize> {
         self.cfs().get(cf).and_then(|cf| Some(cf.len()))
     }
@@ -224,6 +237,10 @@ mod pebble_db_tests {
             .unwrap();
         dbg!(&db);
         assert_eq!(db.cfs().len(), 2);
+        assert_eq!(
+            db.cf_len(&"claims".into()).unwrap() + db.cf_len(&"state".into()).unwrap(),
+            db.inner.values().into_iter().len()
+        );
     }
 }
 
