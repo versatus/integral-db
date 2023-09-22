@@ -12,7 +12,7 @@ use patriecia::{
     KeyHash, Node, NodeKey, OwnedValue, Preimage, StaleNodeIndex, TreeReader, TreeUpdateBatch,
     TreeWriter, Vers, VersionedDatabase,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{hash_map::IntoIter, BTreeMap, BTreeSet, HashMap},
     hash::{Hash, Hasher},
@@ -35,7 +35,7 @@ const DEFAULT_COLUMN_FAMILY: &str = "default";
 /// db.insert(("key", "val"), &"cf".into());
 /// assert_eq!(db.cf_len(&"cf".into()), Some(1));
 /// ```
-#[derive(Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ColumnFamily(String);
 impl ColumnFamily {
     /// Create a key prefix hash. Output is always 8 bytes long.
@@ -108,7 +108,9 @@ type PrefixedKey = Vec<u8>;
 //
 // Note: This may actually prove useful for more than testing since we will want
 //       similar functionality to RocksDB without the overhead cost of a full instance.
-#[derive(Clone, Debug)]
+//
+// TODO: Make keys and values generic on the inner map?
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PebbleDB {
     inner: indexmap::IndexMap<PrefixedKey, OwnedValue>,
     /// A map of the column family names and the keys with
