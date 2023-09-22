@@ -24,6 +24,17 @@ use std::{
 const DEFAULT_COLUMN_FAMILY: &str = "default";
 
 /// Holds the name of a column family.
+///
+/// Easily craft a new column family from a string or bytes.
+///
+/// Example:
+/// ```rust
+/// use db_adapter::{ColumnFamily, PebbleDB};
+/// let mut db = PebbleDB::default();
+///
+/// db.insert(("key", "val"), &"cf".into());
+/// assert_eq!(db.cf_len(&"cf".into()), Some(1));
+/// ```
 #[derive(Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct ColumnFamily(String);
 impl ColumnFamily {
