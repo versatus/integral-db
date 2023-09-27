@@ -32,4 +32,5 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./lr_trie/Cargo.toml
+          args: -p lr_trie
+      
