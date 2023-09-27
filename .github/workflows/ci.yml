@@ -1,5 +1,5 @@
 name: cargo
-on: [pull request]
+on: [pull_request]
 env:
   CARGO_TERM_COLOR: always
 
