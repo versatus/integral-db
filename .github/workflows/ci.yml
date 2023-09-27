@@ -1,5 +1,5 @@
 name: cargo
-on: [pull request]
+on: [pull_request]
 env:
   CARGO_TERM_COLOR: always
 
@@ -9,28 +9,42 @@ jobs:
     name: clippy
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
-        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-          components: clippy
-        name: Check Clippy Linter
-        run: cargo clippy --all-features --all-targets -- -D warnings
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: cargo clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features --all-targets -- -D warnings
+
 
   # tests all crates in parallel
   test-lr_trie:
     name: test lr_trie
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
-        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
+          profile: minimal
+          toolchain: stable
+          override: true
       - name: cargo test
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: -p lr_trie
-      
