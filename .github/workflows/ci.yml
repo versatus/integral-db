@@ -9,7 +9,7 @@ jobs:
     name: clippy
     runs-on: ubuntu-latest
     steps:
-       - name: Checkout sources
+      - name: Checkout sources
         uses: actions/checkout@v3
         with:
           submodules: true
@@ -31,7 +31,7 @@ jobs:
     name: test lr_trie
     runs-on: ubuntu-latest
     steps:
-       - name: Checkout sources
+      - name: Checkout sources
         uses: actions/checkout@v3
         with:
           submodules: true
