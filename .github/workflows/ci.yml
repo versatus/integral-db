@@ -11,7 +11,6 @@ jobs:
     steps:
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
-        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
           components: clippy
@@ -25,7 +24,6 @@ jobs:
     steps:
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
-        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
       - name: cargo test
