@@ -1,0 +1,18 @@
+[package]
+name = "db_adapter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+bincode = { workspace = true }
+dirs = "3"
+# WARNING: changing this version could potentially
+# create problems with existing database keys
+# verify that the desired version is compatible
+# before shipping with a new version.
+fnv = "1.0.7" # should be 1.0.7
+indexmap = { workspace = true }
+patriecia = { workspace = true }
+parking_lot = { workspace = true }
+serde = { workspace = true }

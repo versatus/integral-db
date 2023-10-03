@@ -250,7 +250,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use patriecia::{JellyfishMerkleIterator, MockTreeStore, VersionedTrie};
+    use patriecia::{MockTreeStore, VersionedTrie};
     use std::thread;
 
     use super::*;

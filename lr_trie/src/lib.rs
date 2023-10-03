@@ -1,3 +1,4 @@
+pub use db_adapter::*;
 /// This crate contains a left-right wrapped, evmap-backed JellyfishMerkleTree,
 /// which is a modified version Penumbra & Diem's JellyfishMerkleTree to suite
 /// our concurrent read and write needs.
