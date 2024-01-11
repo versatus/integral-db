@@ -156,11 +156,7 @@ where
             .map(|(key, value)| {
                 //TODO: revisit the serializer used to store things on the trie
                 let key = KeyHash::with::<Sha256>(bincode::serialize(&key).unwrap_or_default());
-                let value = if let Some(val) = value {
-                    Some(bincode::serialize(&val).unwrap_or_default())
-                } else {
-                    None
-                };
+                let value = value.map(|val| bincode::serialize(&val).unwrap_or_default());
 
                 (key, value)
             })
@@ -250,7 +246,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use patriecia::{JellyfishMerkleIterator, MockTreeStore, VersionedTrie};
+    use patriecia::{MockTreeStore, VersionedTrie};
     use std::thread;
 
     use super::*;
@@ -290,7 +286,7 @@ mod tests {
         trie.publish();
 
         // NOTE Spawn 10 threads and 10 readers that should report the exact same value
-        [0..10]
+        [0; 10]
             .iter()
             .map(|_| {
                 let reader = trie.handle();
